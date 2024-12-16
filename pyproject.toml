@@ -1,0 +1,10 @@
+[project]
+name = "cortical_motion"
+[tool.pytest.ini_options]
+        addopts=[
+            "--import-mode=importlib"
+            ]
+pythonpath = [
+  "."
+]
+python_files="test_*.py"
