@@ -15,6 +15,9 @@ NUM_ITERATIONS = 100
 # Datasets
 DATASET_ROOT = os.getenv("DATASET_ROOT", ".")
 HCPDEV_FOLDER = os.getenv("HCPDEV_FOLDER", "HCP-D_bids")
+HBNCIBC_FOLDER = os.getenv("HBNCIBC_FOLDER", "Site-CBIC")
+HBNCUNY_FOLDER = os.getenv("HBNCUNY_FOLDER", "Site-CUNY")
+MRART_FOLDER = os.getenv("MRART_FOLDER", "MRART-bids")
 SYNTH_FOLDER = os.getenv("SYNTH_FOLDER", "SynthCortical")
 
 # Narval

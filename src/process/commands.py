@@ -1,10 +1,13 @@
+import gzip
+import logging
+
 import click
 
 from src import config
 from src.process.freesurfer import run_freesurfer_cortical_thichness
 from src.process.generate.generate import launch_generate_data
 from src.process.measurements import aggregate_measurements_bids
-from src.process.motion_estimator import estimate_motion_bids
+from src.process.motion_estimator import estimate_motion_bids, estimate_motion_records
 from src.utils.bids import BIDSDirectory
 from src.utils.slurm import slurm_adaptor
 
@@ -43,6 +46,22 @@ def generate_data():
 
 @process.command()
 @slurm_adaptor(n_cpus=1, n_gpus=1, mem="30G", time="1:00:00")
-def quant_motion():
+@click.option("--file", type=str, default=None)
+def quant_motion(file: str):
     """Quantify motion for HCPDev"""
-    estimate_motion_bids(BIDSDirectory.HCPDev())
+    if file is not None:
+        estimate_motion_records(file)
+    else:
+        estimate_motion_bids(BIDSDirectory.MRART())
+    # estimate_motion_bids(BIDSDirectory.HBNCBIC())
+
+
+@process.command()
+def check_bids():
+    ds: BIDSDirectory = BIDSDirectory.HBNCBIC()
+    for sub, ses in ds.walk():
+        try:
+            t1 = ds.get_T1w(sub, ses)
+            gzip.open(t1)
+        except:
+            logging.info(f"missing {sub}, {ses}")

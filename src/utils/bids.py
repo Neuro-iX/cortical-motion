@@ -1,4 +1,5 @@
 import glob
+import logging
 import os
 import re
 from typing import Generator, Self
@@ -8,6 +9,10 @@ from src import config
 
 class BIDSDirectory:
     """Utility to query BIDS directories"""
+
+    has_session: bool = False
+    has_sites: bool = False
+    sites: list[str] = None
 
     def __init__(self, dataset: str, root_dir: str = config.DATASET_ROOT):
         """Args:
@@ -57,9 +62,25 @@ class BIDSDirectory:
         Returns:
             str: Path to T1w
         """
+        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
         return glob.glob(
             os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz")
         )[0]
+
+    def get_all_T1w(self, sub_id: str, ses_id: str = "ses-1") -> str:
+        """Return path to T1w volume
+
+        Args:
+            sub_id (str): Subject id (sub-???)
+            ses_id (str, optional): Session id (ses-???). Defaults to "ses-1".
+
+        Returns:
+            str: Path to T1w
+        """
+        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
+        return glob.glob(
+            os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz")
+        )
 
     def extract_sub_ses(self, path: str) -> tuple[str | None, str | None]:
         """Extract subject and session identifier from path
@@ -86,3 +107,38 @@ class BIDSDirectory:
     def HCPDev() -> Self:
         """Method to create object for HCP Dev"""
         return BIDSDirectory(config.HCPDEV_FOLDER, root_dir=config.DATASET_ROOT)
+
+    @staticmethod
+    def HBNCBIC() -> Self:
+        """Method to create object for HBN CIBC site"""
+        return BIDSDirectory(config.HBNCIBC_FOLDER, root_dir=config.DATASET_ROOT)
+
+    @staticmethod
+    def HBNCUNY() -> Self:
+        """Method to create object for HBN CUNY site"""
+        return BIDSDirectory(config.HBNCUNY_FOLDER, root_dir=config.DATASET_ROOT)
+
+    @staticmethod
+    def MRART() -> Self:
+        """Method to create object for HBN CUNY site"""
+        return BIDSDirectory(config.MRART_FOLDER, root_dir=config.DATASET_ROOT)
+
+
+def get_sub(path: str):
+    req = r".*(sub-[\dA-Za-z]*).*"
+    match = re.match(req, path)
+    sub = None
+    if match is not None:
+        groups = match.groups()
+        sub = groups[0]
+    return sub
+
+
+def get_ses(path: str):
+    req = r".*(ses-[\dA-Za-z]*).*"
+    match = re.match(req, path)
+    sub = None
+    if match is not None:
+        groups = match.groups()
+        sub = groups[0]
+    return sub
