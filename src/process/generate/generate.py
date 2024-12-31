@@ -51,7 +51,7 @@ class CreateSynthVolume(RandomizableTransform):
     elastic_prob: float = 0.7
     flip_prob: float = 0.5
     corrupt_prob: float = 0.5
-    goal_motion_range: tuple[float, float] = (0.01, 3.0)
+    goal_motion_range: tuple[float, float] = (0.01, 1.0)
     num_transforms_range: tuple[int, int] = (2, 8)
     tolerance: float = 0.02
 
@@ -66,7 +66,7 @@ class CreateSynthVolume(RandomizableTransform):
         )
 
         self.corrupt = Compose(
-            [RandomGamma((-0.1, 0.1)), RandomBiasField(coefficients=(0.0, 0.35))]
+            [RandomGamma((-0.05, 0.05)), RandomBiasField(coefficients=(0.0, 0.2))]
         )
         self.flip = RandomFlip(0, flip_probability=1)
         self.goal_motion = 0

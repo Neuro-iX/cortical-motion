@@ -2,6 +2,8 @@ import gzip
 import logging
 
 import click
+import nibabel as nib
+import tqdm
 
 from src import config
 from src.process.freesurfer import run_freesurfer_cortical_thichness
@@ -59,9 +61,9 @@ def quant_motion(file: str):
 @process.command()
 def check_bids():
     ds: BIDSDirectory = BIDSDirectory.HBNCBIC()
-    for sub, ses in ds.walk():
+    for sub, ses in tqdm.tqdm(ds.walk()):
         try:
             t1 = ds.get_T1w(sub, ses)
-            gzip.open(t1)
+            nib.load(t1).get_fdata()
         except:
-            logging.info(f"missing {sub}, {ses}")
+            logging.info(f"missing {sub}, {ses}, {t1}")
