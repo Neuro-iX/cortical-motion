@@ -1,4 +1,5 @@
 import abc
+import logging
 import os
 from typing import Callable, Self
 
@@ -20,8 +21,11 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
     csv_data: pd.DataFrame
     volumes: list[str]
     labels: list[str]
-    to_keep: list[str]
-    renaming_map: dict[str, str]
+    to_keep: list[str] = []
+    renaming_map: list[tuple[str, str]]
+
+    group_key: str = "group"
+    group: str | None = None
 
     def __init__(self, dataset_root: str, transform: Callable | None = None):
         self.dataset_root = dataset_root
@@ -34,6 +38,9 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
             )
         else:
             self.csv_data = pd.read_csv(os.path.join(self.path, self.csv_path))
+
+        if self.group is not None:
+            self.csv_data = self.csv_data[self.csv_data[self.group_key] == self.group]
 
         self.rename_fields()
 
@@ -58,7 +65,8 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
 
     def rename_fields(self):
         """Simple method for renaming logic"""
-        self.csv_data = self.csv_data.rename(self.renaming_map)
+        for old_key, new_key in self.renaming_map:
+            self.csv_data[new_key] = self.csv_data[old_key].copy()
 
     def load_volume(self, vol_key: str, vol_path: str) -> torch.Tensor:
         """Should load the volume with the needed transforms

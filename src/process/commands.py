@@ -3,6 +3,7 @@ import logging
 
 import click
 import nibabel as nib
+import pandas as pd
 import tqdm
 
 from src import config
@@ -10,7 +11,7 @@ from src.process.freesurfer import run_freesurfer_cortical_thichness
 from src.process.generate.generate import launch_generate_data
 from src.process.measurements import aggregate_measurements_bids
 from src.process.motion_estimator import estimate_motion_bids, estimate_motion_records
-from src.utils.bids import BIDSDirectory
+from src.utils.bids import BIDSDirectory, ClinicaDirectory
 from src.utils.slurm import slurm_adaptor
 
 
@@ -28,6 +29,23 @@ def hcpd_fs():
 
 
 @process.command()
+@click.option("-O", "--orig", is_flag=True)
+@click.option("-P", "--to_process", type=str, default="None")
+def synth_fs(orig: bool, to_process: str):
+    """Compute freesurfer cortcial thickness stats"""
+    fs_synth = BIDSDirectory.FS_SYNTH()
+
+    if to_process is not None:
+        files = pd.read_csv(to_process, index_col=0)
+        for sub, ses, gen in files.to_records(index=False):
+            run_freesurfer_cortical_thichness(sub, ses, fs_synth, gen_id=gen)
+    else:
+        for sub, ses, gen in fs_synth.walk():
+            if (gen == "gen-orig" and orig) or (gen != "gen-orig" and not orig):
+                run_freesurfer_cortical_thichness(sub, ses, fs_synth, gen_id=gen)
+
+
+@process.command()
 def hcpd_measure():
     """Aggregate measurements in aparc_stats.{rh, lh}.txt"""
     hcpdev = BIDSDirectory.HCPDev()
@@ -35,14 +53,27 @@ def hcpd_measure():
 
 
 @process.command()
-@slurm_adaptor(n_cpus=64, mem="249G", time="4:00:00")
+@slurm_adaptor(n_cpus=64, mem="249G", time="30:00:00")
 def generate_data():
     """Create synthetic motion data from HCPDev"""
     launch_generate_data(
-        BIDSDirectory.HCPDev(),
+        ClinicaDirectory.CBICCUNY(),
         config.SYNTH_FOLDER,
         config.DATASET_ROOT,
         config.NUM_ITERATIONS,
+    )
+
+
+@process.command()
+@slurm_adaptor(n_cpus=64, mem="249G", time="5:00:00")
+def generate_freesurfer_data():
+    """Create synthetic motion data from HCPDev"""
+    launch_generate_data(
+        ClinicaDirectory.CBICCUNY(),
+        config.FREESURFER_SYNTH_FOLDER,
+        config.DATASET_ROOT,
+        config.FREESURFER_NUM_ITERATIONS,
+        True,
     )
 
 

@@ -160,3 +160,18 @@ def setup_python(job: Slurm):
     job.add_cmd("module load python cuda httpproxy")
     job.add_cmd("source ~/fix_bowl/bin/activate")
     job.add_cmd('echo "python is setup"')
+
+
+def copy_data_tmp(job: Slurm, tar_files: list[str]):
+    """Extract data from scratch to $SLURM_TMPDIR for pretraining dataset
+
+    Args:
+        job (Slurm): slurm job to modify
+    """
+    job.add_cmd("setenv DATASET_ROOT $SLURM_TMPDIR/datasets")
+    job.add_cmd("mkdir -p $SLURM_TMPDIR/datasets")
+    for ds in tar_files:
+        job.add_cmd(
+            f"tar --skip-old-file -xf ~/scratch/{ds}.tar home/cbricout/scratch -C $SLURM_TMPDIR/datasets --strip-components 3"
+        )
+        job.add_cmd(f'echo "{ds} copied"')

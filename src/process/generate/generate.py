@@ -47,11 +47,11 @@ class CreateSynthVolume(RandomizableTransform):
     apply_corrupt: bool
 
     # Synthetic Parameters, not meant to be change often
-    motion_prob: float = 0.95
-    elastic_prob: float = 0.7
+    motion_prob: float = 0.98
+    elastic_prob: float = 0.9
     flip_prob: float = 0.5
-    corrupt_prob: float = 0.5
-    goal_motion_range: tuple[float, float] = (0.01, 1.0)
+    corrupt_prob: float = 0.3
+    goal_motion_range: tuple[float, float]
     num_transforms_range: tuple[int, int] = (2, 8)
     tolerance: float = 0.02
 
@@ -59,7 +59,14 @@ class CreateSynthVolume(RandomizableTransform):
     goal_motion: float
     num_transforms: int
 
-    def __init__(self, prob: float = 1, do_transform: bool = True):
+    def __init__(
+        self,
+        prob: float = 1,
+        do_transform: bool = True,
+        goal_motion_range=(0.01, 2.0),
+        motion_prob=0.98,
+        motion_only=False,
+    ):
         super().__init__(prob, do_transform)
         self.elastic_tsf = RandomElasticDeformation(
             num_control_points=7, max_displacement=8, image_interpolation="bspline"
@@ -70,6 +77,9 @@ class CreateSynthVolume(RandomizableTransform):
         )
         self.flip = RandomFlip(0, flip_probability=1)
         self.goal_motion = 0
+        self.motion_only = motion_only
+        self.goal_motion_range = goal_motion_range
+        self.motion_prob = motion_prob
 
     def get_parameters(self) -> dict[str, Number | tuple[Number, Number]]:
         """Return a dictionnary summarizing all parameters for transformation
@@ -86,6 +96,7 @@ class CreateSynthVolume(RandomizableTransform):
             "goal_motion_range": self.goal_motion_range,
             "num_transforms_range": self.num_transforms_range,
             "tolerance": self.tolerance,
+            "motion_only": self.motion_only,
         }
 
     def randomize(self):
@@ -109,9 +120,9 @@ class CreateSynthVolume(RandomizableTransform):
     def __call__(self, data):
         img: torch.Tensor = data["data"]
         self.randomize()
-        if self.apply_flip:
+        if self.apply_flip and not self.motion_only:
             img = self.flip(img)
-        if self.apply_elastic:
+        if self.apply_elastic and not self.motion_only:
             img = self.elastic_tsf(img)
         clear = img.clone()
         if self.apply_motion:
@@ -119,7 +130,7 @@ class CreateSynthVolume(RandomizableTransform):
         else:
             motion_mm = 0
 
-        if self.apply_corrupt:
+        if self.apply_corrupt and not self.motion_only:
             img = self.corrupt(img)
 
         return {
@@ -179,12 +190,13 @@ class SyntheticPipeline(Transform):
         dataset_dir: BIDSDirectory,
         new_dataset_dir: str,
         n_iterations=config.NUM_ITERATIONS,
+        freesurfer_sim=False,
     ):
         super().__init__()
         self.n_iterations = n_iterations
         self.dataset_dir = dataset_dir
         self.new_dataset_dir = new_dataset_dir
-
+        self.freesurfer_sim = freesurfer_sim
         self.load = Preprocess()
         self.save = SaveImage(
             savepath_in_metadict=True,
@@ -192,7 +204,12 @@ class SyntheticPipeline(Transform):
             separate_folder=False,
             print_log=False,
         )
-        self.synthetic_tsf = CreateSynthVolume()
+        if self.freesurfer_sim:
+            self.synthetic_tsf = CreateSynthVolume(
+                goal_motion_range=(0.01, 2.5), motion_prob=1, motion_only=True
+            )
+        else:
+            self.synthetic_tsf = CreateSynthVolume()
         self.process = Compose(
             [
                 self.synthetic_tsf,
@@ -216,13 +233,33 @@ class SyntheticPipeline(Transform):
         element = {"data": path}
         volume = self.load(element)
         subject, session = self.dataset_dir.extract_sub_ses(element["data"])
+        sub_ses_path = os.path.join(self.new_dataset_dir, subject, session)
 
         generated = []
+
+        if self.freesurfer_sim:
+            orig_dir_path = os.path.join(sub_ses_path, "gen-orig", "anat")
+            os.makedirs(orig_dir_path, exist_ok=True)
+            new_identifier = f"{subject}_{session}_gen-orig"
+            orig_file_path = os.path.join(orig_dir_path, f"{new_identifier}_T1w.nii.gz")
+            shutil.copy(path, orig_file_path)
+            generated.append(
+                {
+                    "subject": subject,
+                    "session": session,
+                    "generation": "gen-orig",
+                    "motion_mm": 0,
+                    "motion_binary": False,
+                    "identifier": new_identifier,
+                    "data": orig_file_path,
+                }
+            )
+
         for curr_iter in range(self.n_iterations):
             synth = self.process(volume)
 
             gen = f"gen-{str(curr_iter).zfill(3)}"
-            dir_path = os.path.join(self.new_dataset_dir, subject, session, gen, "anat")
+            dir_path = os.path.join(sub_ses_path, gen, "anat")
 
             new_identifier = f"{subject}_{session}_{gen}"
             corrupted_path = os.path.join(dir_path, f"{new_identifier}_corrupted_T1w")
@@ -231,26 +268,26 @@ class SyntheticPipeline(Transform):
             os.makedirs(dir_path, exist_ok=True)
 
             self.save(synth["data"], filename=corrupted_path)
-            self.save(synth["clear"], filename=clear_path)
 
             corrupt_rel_path = os.path.relpath(
                 corrupted_path, os.path.dirname(self.new_dataset_dir)
             )
-            clear_rel_path = os.path.relpath(
-                clear_path, os.path.dirname(self.new_dataset_dir)
-            )
-            generated.append(
-                {
-                    "subject": subject,
-                    "session": session,
-                    "generation": gen,
-                    "motion_mm": synth["motion_mm"],
-                    "motion_binary": synth["motion_binary"],
-                    "identifier": new_identifier,
-                    "data": corrupt_rel_path + ".nii.gz",
-                    "clear": clear_rel_path + ".nii.gz",
-                }
-            )
+            sample = {
+                "subject": subject,
+                "session": session,
+                "generation": gen,
+                "motion_mm": synth["motion_mm"],
+                "motion_binary": synth["motion_binary"],
+                "identifier": new_identifier,
+                "data": corrupt_rel_path + ".nii.gz",
+            }
+            if not self.freesurfer_sim:
+                self.save(synth["clear"], filename=clear_path)
+                clear_rel_path = os.path.relpath(
+                    clear_path, os.path.dirname(self.new_dataset_dir)
+                )
+                sample["clear"] = (clear_rel_path + ".nii.gz",)
+            generated.append(sample)
         return generated
 
     def save_parameters(self):
@@ -263,7 +300,11 @@ class SyntheticPipeline(Transform):
 
 
 def launch_generate_data(
-    dataset_dir: BIDSDirectory, new_dataset: str, root_dir: str, num_iteration: int
+    dataset_dir: BIDSDirectory,
+    new_dataset: str,
+    root_dir: str,
+    num_iteration: int,
+    freesurfer_sim=False,
 ):
     """Generate synthetic motion dataset and store everything (Volumes and CSVs)
 
@@ -271,15 +312,14 @@ def launch_generate_data(
         new_dataset (str): Name of the new dataset
     """
     new_dataset_dir = os.path.join(root_dir, new_dataset)
-    new_dataset_archive_dir = new_dataset_dir + "_archive"
     if os.path.exists(new_dataset_dir):
         shutil.rmtree(new_dataset_dir)
-    if os.path.exists(new_dataset_archive_dir):
-        shutil.rmtree(new_dataset_archive_dir)
 
     logging.info("[SYNTH DATASET] Create synth dataset in %s", new_dataset_dir)
 
     dataset_paths = list(dataset_dir.walk())
+    if freesurfer_sim:
+        dataset_paths = dataset_paths[: config.FREESURFER_NUM_SUBJECTS]
     dataset_length = len(dataset_paths)
     logging.info(
         "[SYNTH DATASET] Starting : %d iteration per volumes for %d volumes",
@@ -289,10 +329,15 @@ def launch_generate_data(
     logging.info("[SYNTH DATASET] Will create %d", num_iteration * dataset_length)
 
     generated_all = []
-    parallel = Parallel(n_jobs=64, return_as="generator_unordered")(
-        delayed(SyntheticPipeline(dataset_dir, new_dataset_dir, num_iteration))(
-            dataset_dir.get_T1w(*sub_ses)
-        )
+    parallel = Parallel(
+        n_jobs=config.NUM_PROCS,
+        return_as="generator_unordered",
+    )(
+        delayed(
+            SyntheticPipeline(
+                dataset_dir, new_dataset_dir, num_iteration, freesurfer_sim
+            )
+        )(dataset_dir.get_T1w(*sub_ses))
         for sub_ses in dataset_paths
     )
 
@@ -301,7 +346,9 @@ def launch_generate_data(
 
     pd.DataFrame.from_records(generated_all).to_csv(f"{new_dataset_dir}/scores.csv")
 
-    synth_tsf = SyntheticPipeline(dataset_dir, new_dataset_dir, num_iteration)
+    synth_tsf = SyntheticPipeline(
+        dataset_dir, new_dataset_dir, num_iteration, freesurfer_sim
+    )
     synth_tsf.save_parameters()
 
     logging.info("[SYNTH DATASET] DONE !")

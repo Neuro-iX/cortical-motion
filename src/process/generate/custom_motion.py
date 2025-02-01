@@ -27,7 +27,7 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
             goal_motion (float): quantify motion wanted
             tolerance (float, optional): acceptable tolerance. Defaults to 0.02.
         """
-        self.transform_degrees = self.R.uniform(0, np.max((goal_motion, 1)))
+        self.transform_degrees = self.R.uniform(0, np.max((goal_motion * 2, 1)))
         self.transform_translation = self.R.uniform(0, np.max((goal_motion, 1)))
         self.goal_motion = goal_motion
         self.num_transforms = self.R.randint(
@@ -45,7 +45,7 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
 
     def randomize(self, data):
         self.degrees_range = self.parse_degrees(
-            self.R.uniform(0, np.max((self.goal_motion, 1)))
+            self.R.uniform(0, np.max((self.goal_motion * 2, 1)))
         )
         self.translation_range = self.parse_translation(
             self.R.uniform(0, np.max((self.goal_motion, 1)))

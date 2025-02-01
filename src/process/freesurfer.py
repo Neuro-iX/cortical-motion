@@ -94,7 +94,7 @@ class FreeSurferReconAll(Command):
 
 
 def run_freesurfer_cortical_thichness(
-    sub_id: str, ses_id: str, dataset: BIDSDirectory
+    sub_id: str, ses_id: str, dataset: BIDSDirectory, gen_id: str = None
 ) -> int:
     """Launch Slurm job to process one subject with freesurfer.
     Only keep cortical thickness stats.
@@ -103,6 +103,7 @@ def run_freesurfer_cortical_thichness(
         sub_id (str): identifier of subject (with 'sub-')
         ses_id (str): identifier of session (with 'ses-')
         dataset (BIDSDirectoryDataset) : dataset object to retrieve pathes
+        gen (str): generation identifiers
 
     Returns:
         int: sbatch launch code
@@ -110,12 +111,16 @@ def run_freesurfer_cortical_thichness(
     logging.info("Processing subject : %s", sub_id)
 
     # Preparing Slurm Job parameters
+    output_slurm = f"./logs/{sub_id}_{ses_id}"
+    if gen_id is not None:
+        output_slurm = f"{output_slurm}_{gen_id}"
+    output_slurm = f"{output_slurm}.%j.out"
     job = Slurm(
         cpus_per_task=1,
-        mem="6G",
-        account="ctb-sbouix",
-        time="9:00:00",
-        output=f"./logs/{sub_id}_{ses_id}.%j.out",
+        mem="30G",
+        account="rrg-ebrahimi",
+        time="20:00:00",
+        output=output_slurm,
     )
 
     # Creating an Apptainer Command to use freesurfer with apptainer
@@ -129,10 +134,19 @@ def run_freesurfer_cortical_thichness(
 
     # the directory where freesurfer will store results(needs to be unique)
     fs_dir = sub_id + ses_id
+
     # Create and add recon-all command to our apptainer command
-    freesurfer_cmd = FreeSurferReconAll(
-        fs_dir, dataset.get_T1w(sub_id, ses_id), subject_dir="/tmp"
-    )
+    if gen_id is not None:
+        fs_dir += gen_id
+        freesurfer_cmd = FreeSurferReconAll(
+            fs_dir,
+            dataset.get_T1w(sub_id, ses_id, gen_id=gen_id),
+            subject_dir="/tmp",
+        )
+    else:
+        freesurfer_cmd = FreeSurferReconAll(
+            fs_dir, dataset.get_T1w(sub_id, ses_id), subject_dir="/tmp"
+        )
     apptainer_env.add_command(freesurfer_cmd.compile())
     job.add_cmd(apptainer_env.compile())
 
@@ -140,7 +154,10 @@ def run_freesurfer_cortical_thichness(
     derivative_dir = os.path.join(dataset.base_path, "derivatives")
     os.makedirs(derivative_dir, exist_ok=True)
 
-    sub_dir = os.path.join(derivative_dir, sub_id)
+    sub_dir = os.path.join(derivative_dir, sub_id, ses_id)
+    if gen_id is not None:
+        sub_dir = os.path.join(sub_dir, gen_id)
+
     os.makedirs(sub_dir, exist_ok=True)
 
     stat_dir = os.path.join(sub_dir, "stats")
