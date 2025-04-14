@@ -12,12 +12,8 @@ NUM_PROCS = int(os.getenv("NUM_PROCS", "64"))
 # Volume Parameters
 VOLUME_SHAPE = (160, 192, 160)
 
-# Network Parameters
-DROPOUT = 0.6
-
 # Generation Parameters
-INTENSITY_SCALING = (0.9, 1.1)
-NUM_ITERATIONS = 100
+NUM_ITERATIONS = 300
 FREESURFER_NUM_ITERATIONS = 50
 FREESURFER_NUM_SUBJECTS = 40
 
@@ -29,11 +25,11 @@ HARD_LABEL_KEY = "hard_label"
 
 # Datasets
 DATASET_ROOT = os.getenv("DATASET_ROOT", ".")
-HCPDEV_FOLDER = os.getenv("HCPDEV_FOLDER", "HCP-D_bids")
-HBNCIBC_FOLDER = os.getenv("HBNCIBC_FOLDER", "Site-CBIC_preproc")
-HBNCUNY_FOLDER = os.getenv("HBNCUNY_FOLDER", "Site-CUNY_preproc")
-CBICCUNY_FOLDER = os.getenv("CBICCUNY_FOLDER", "CBIC_CUNY_preproc")
-MRART_FOLDER = os.getenv("MRART_FOLDER", "MRART-bids")
+if "$SLURM_TMPDIR" in DATASET_ROOT:
+    DATASET_ROOT = DATASET_ROOT.replace(
+        "$SLURM_TMPDIR", os.environ.get("SLURM_TMPDIR", "")
+    )
+CBICCUNY_FOLDER = os.getenv("CBICCUNY_FOLDER", "HBN_CBIC_CUNY_preproc")
 SYNTH_FOLDER = os.getenv("SYNTH_FOLDER", "SynthCortical")
 FREESURFER_SYNTH_FOLDER = os.getenv("FREESURFER_SYNTH_FOLDER", "FS_SynthCortical_V2")
 
@@ -43,9 +39,15 @@ PATH_FREESURFER_NARVAL = os.getenv("PATH_FREESURFER_NARVAL")
 
 ## MOTION MM PARAMETERS
 MOTION_N_BINS = 50
-MOTION_BIN_RANGE = (-0.4, 2.4)
+MOTION_BIN_RANGE = (-0.5, 4.5)
+# MOTION_BIN_RANGE = (-0.4, 1.4)
+
 MOTION_BIN_STEP = (MOTION_BIN_RANGE[1] - MOTION_BIN_RANGE[0]) / MOTION_N_BINS
 
 
-## ISBI Motion Model
-MOTION_MODEL_PATH = "src/process/motion_model/motion_estimator.pt"
+REPORT_DIR = os.getenv(
+    "REPORT_DIR", "/home/cbricout/projects/ctb-sbouix/cbricout/cortical_reports"
+)
+RAYTUNE_DIR = os.getenv("RAYTUNE_DIR", "/lustre07/scratch/cbricout/ray_results")
+
+SEED = 2025

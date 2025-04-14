@@ -14,7 +14,11 @@ slurm_arg = click.option(
 
 
 def slurm_adaptor(
-    n_cpus: int = 1, n_gpus: int = 0, mem: str = "8G", time: str = "1:00:00"
+    n_cpus: int = 1,
+    n_gpus: int = 0,
+    mem: str = "8G",
+    time: str = "1:00:00",
+    cpy_synth_ds=False,
 ):
     """This function generate a decorate to enable slurm on a click command.
     it retrieves the command used to launch the program and launch it in a python slurm job
@@ -41,6 +45,9 @@ def slurm_adaptor(
                     mem=mem,
                     time=time,
                 )
+                if cpy_synth_ds:
+                    print("add tmp data command")
+                    copy_data_tmp(job, ["SynthCortical"])
                 launch_as_slurm(job)
             else:
                 return func(*args, **kwargs)
@@ -157,7 +164,7 @@ def setup_python(job: Slurm):
     Args:
         job (Slurm): slurm job to modify
     """
-    job.add_cmd("module load python cuda httpproxy")
+    job.add_cmd("module load python cuda httpproxy opencv")
     job.add_cmd("source ~/fix_bowl/bin/activate")
     job.add_cmd('echo "python is setup"')
 
@@ -168,10 +175,12 @@ def copy_data_tmp(job: Slurm, tar_files: list[str]):
     Args:
         job (Slurm): slurm job to modify
     """
-    job.add_cmd("setenv DATASET_ROOT $SLURM_TMPDIR/datasets")
+    job.add_cmd("export DATASET_ROOT=$SLURM_TMPDIR/datasets")
     job.add_cmd("mkdir -p $SLURM_TMPDIR/datasets")
     for ds in tar_files:
         job.add_cmd(
-            f"tar --skip-old-file -xf ~/scratch/{ds}.tar home/cbricout/scratch -C $SLURM_TMPDIR/datasets --strip-components 3"
+            f"tar --skip-old-file -xf /home/cbricout/projects/ctb-sbouix/cbricout/cortical-motion-datasets/{ds}.tar -C $SLURM_TMPDIR/datasets "
         )
         job.add_cmd(f'echo "{ds} copied"')
+
+        job.add_cmd(f"head $SLURM_TMPDIR/datasets/SynthCortical/scores.csv")

@@ -1,0 +1,71 @@
+,model,r2_score,rmse
+0,"RegressionTask(
+  (model): OptimizedModule(
+    (_orig_mod): GenericSFCNModel(
+      (encoder): SFCNEncoder(
+        (convs): Sequential(
+          (0): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(1, 32, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+              (3): MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+          )
+          (1): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(32, 64, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+              (3): MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+          )
+          (2): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(64, 128, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+              (3): MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+          )
+          (3): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(128, 256, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+              (3): MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+          )
+          (4): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(256, 256, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+              (3): MaxPool3d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+          )
+          (5): DownBlock(
+            (convs): Sequential(
+              (0): Conv3d(256, 64, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=same)
+              (1): BatchNorm3d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (2): ReLU()
+            )
+          )
+        )
+      )
+      (classifier): SFCNHeadBlock(
+        (0): AdaptiveAvgPool3d(output_size=1)
+        (1): Dropout(p=0.6, inplace=False)
+        (2): Conv3d(64, 50, kernel_size=(1, 1, 1), stride=(1, 1, 1), padding=same)
+        (3): Flatten(start_dim=1, end_dim=-1)
+        (4): LogSoftmax(dim=1)
+      )
+    )
+  )
+  (kl_loss): KLDivLoss(
+    (loss_func): KLDivLoss()
+  )
+  (l2_loss): L2Loss(
+    (loss_func): MSELoss()
+  )
+)",0.916844318619893,0.33927607850714275

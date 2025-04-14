@@ -62,6 +62,7 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
         """
         arguments: Dict[str, dict] = defaultdict(dict)
         motion_mm = -1
+        self.randomize(0)
         retry = 0
         while (
             motion_mm > self.goal_motion + self.tolerance

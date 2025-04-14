@@ -1,46 +1,69 @@
 import click
 
-from src.training.combine_task import launch_training
-from src.training.denoise_task import launch_denoise_training
-from src.training.regression_task import launch_regression_training
+from src.training.hyperparameters import (
+    ActivationType,
+    ClassifierType,
+    DatasetModeType,
+    DownsampleType,
+    HyperParamConf,
+    NormType,
+    RegressionLossType,
+    TuningTask,
+)
+from src.training.regression_task import launch_regression_training, tune_model
+from src.utils.click import ClickEnumType, TupleParamType
 from src.utils.slurm import slurm_adaptor
 
 
 @click.group()
 def train():
-    """Command group for data processing"""
+    pass
 
 
 @train.command()
-@slurm_adaptor(n_cpus=6, mem="490G", n_gpus=4, time="48:00:00")
 @click.option(
-    "-m",
-    "--model",
-    type=click.Choice(["SUnet", "ImUnet", "SUnetMap"], case_sensitive=True),
+    "-t",
+    "--task",
+    type=ClickEnumType(TuningTask),
     required=True,
 )
-def combine(model: str):
+def tune(task: str):
     """Launch basic training for Combine and Regression task"""
-    launch_training(model)
+    tune_model(task)
 
 
 @train.command()
-@slurm_adaptor(n_cpus=10, mem="160G", n_gpus=4, time="24:00:00")
-def denoise():
-    """Launch basic training for Combine and Regression task"""
-    launch_denoise_training()
-
-
-@train.command()
-@slurm_adaptor(n_cpus=10, mem="490G", n_gpus=4, time="48:00:00")
-@click.option(
-    "-m",
-    "--model",
-    type=click.Choice(
-        ["SFCN", "ImSFCN", "SUnet", "ImUnet", "Opti"], case_sensitive=True
-    ),
-    required=True,
-)
-def regression(model: str):
-    """Launch basic training for Combine and Regression task"""
-    launch_regression_training(model)
+@slurm_adaptor(n_cpus=5, mem="490G", n_gpus=4, time="48:00:00", cpy_synth_ds=True)
+@click.option("--idx", type=int, default=0)
+@click.option("--task", type=ClickEnumType(TuningTask), default=0)
+@click.option("--batch-size", type=int)
+@click.option("--kernel-size", type=int)
+@click.option("--channels", type=TupleParamType())
+@click.option("--n-convs", type=TupleParamType())
+@click.option("--norm", type=ClickEnumType(NormType))
+@click.option("--down", type=ClickEnumType(DownsampleType))
+@click.option("--act", type=ClickEnumType(ActivationType))
+@click.option("--n-bins", type=int)
+@click.option("--kl-beta", type=float)
+@click.option("--loss", type=ClickEnumType(RegressionLossType))
+@click.option("--classifier", type=ClickEnumType(ClassifierType))
+@click.option("--weight-decay", type=float)
+@click.option("--beta1", type=float)
+@click.option("--beta2", type=float)
+@click.option("--epsilon", type=float)
+@click.option("--lr", type=float)
+@click.option("--fixed-lr", type=bool)
+@click.option("--dropout", type=float)
+@click.option("--hist-shift", type=bool)
+@click.option("--augmentation", type=bool)
+@click.option("--dataset-mode", type=ClickEnumType(DatasetModeType))
+@click.option("--soft-label-func", type=str)
+@click.option("--weighted-loss", type=bool)
+def regression(**kwargs):
+    provided_params = {
+        param: values
+        for param, values in kwargs.items()
+        if values is not None  # Click sets `None` if no value was provided
+    }
+    conf = HyperParamConf(**provided_params)
+    launch_regression_training(conf)

@@ -4,19 +4,31 @@ import re
 import shutil
 
 if __name__ == "__main__":
-    ds_path = "/home/at70870/local_scratch/Site-CBIC"
+    ds_path = "/home/at70870/local_scratch/Site-RU"
     subjects = os.listdir(ds_path)
     for sub in subjects:
+
+        if not os.path.isdir(os.path.join(ds_path, sub)):
+            print(f"!! Exclude file : {sub} !!")
+            continue
+
         src = os.path.join(ds_path, sub, "anat")
 
         files = os.listdir(src)
+
         files = filter(lambda x: "nii.gz" in x, files)
         pattern = r"sub-.*_acq-(.*)_T1w"
 
         modals = []
         for f in files:
             match = re.match(pattern, f)
-            modals.append(match.group(1))
+            if match is None:
+                print("------------")
+                print(f"Error finding modal for file {f}")
+                print("------------")
+            else:
+                modals.append(match.group(1))
+
         for m in modals:
             if not "Norm" in m:
                 sesdir = os.path.join(ds_path, sub, f"ses-{m}", "anat")

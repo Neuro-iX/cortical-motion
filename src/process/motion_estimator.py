@@ -1,28 +1,35 @@
-"""This module use the model trained in the IBSI25 Paper to estimate amounts of motion"""
-
 import os
 
 import pandas as pd
 import torch
 import tqdm
 from monai.data.dataset import Dataset
+from sklearn.metrics import r2_score, root_mean_squared_error
 from torch.utils.data import DataLoader
 
 from src import config
-from src.utils import bids
+from src.datasets.synthetic import SyntheticDataModule
+from src.training.hyperparameters import HyperParamConf
+from src.training.regression_task import RegressionTask
 from src.utils.bids import BIDSDirectory
 from src.utils.load import LoadVolume
-from src.utils.soft_label import ToSoftLabel
 
 
-def estimate_motion_dl(dl: DataLoader) -> list[dict[str, float]]:
-    model = torch.load(config.MOTION_MODEL_PATH).cuda()
-    soft_tsf = ToSoftLabel.motion_config()
+def estimate_motion_dl(dl: DataLoader, model_str: str) -> list[dict[str, float]]:
+    model = (
+        RegressionTask.load_from_checkpoint(
+            os.path.join("article/models/", f"{model_str}.ckpt")
+        )
+        .cpu()
+        .eval()
+        .cuda()
+    )
+
     motion_res = []
     with torch.no_grad():
         for batch in tqdm.tqdm(dl):
             data = batch["data"].cuda()
-            motions = model(data)
+            motions = model.predict_step(data).cpu()
             for sub, ses, path, mot in zip(
                 batch["sub"], batch["ses"], batch["path"], motions
             ):
@@ -30,7 +37,7 @@ def estimate_motion_dl(dl: DataLoader) -> list[dict[str, float]]:
                     {
                         "sub": sub,
                         "ses": ses,
-                        "motion": soft_tsf.logsoft_to_hardlabel(mot).item(),
+                        "motion": mot.item(),
                         "path": path,
                     }
                 )
@@ -38,7 +45,8 @@ def estimate_motion_dl(dl: DataLoader) -> list[dict[str, float]]:
     return motion_res
 
 
-def estimate_motion_bids(dataset_dir: BIDSDirectory):
+def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str = None):
+    torch.cuda.empty_cache()
     data = []
     for sub, ses in dataset_dir.walk():
         for t1w in dataset_dir.get_all_T1w(sub, ses):
@@ -50,19 +58,53 @@ def estimate_motion_bids(dataset_dir: BIDSDirectory):
                     "data": t1w,
                 }
             )
-    dl = DataLoader(Dataset(data, LoadVolume()), batch_size=16)
-    res_dict = estimate_motion_dl(dl)
-    os.makedirs("reports/motion_report", exist_ok=True)
-    pd.DataFrame.from_records(res_dict).to_csv("reports/motion_report/report.csv")
+
+    dl = DataLoader(Dataset(data, LoadVolume()), batch_size=20, num_workers=6)
+    if model_str is None:
+        model_str = os.path.basename(config.MOTION_MODEL_PATH).split(".")[:-1]
+    res_dict = estimate_motion_dl(dl, model_str)
+    os.makedirs(f"reports/motion_report/{dataset_dir.dataset}", exist_ok=True)
+    pd.DataFrame.from_records(res_dict).to_csv(
+        f"reports/motion_report/{dataset_dir.dataset}/{model_str}_report.csv"
+    )
 
 
-def estimate_motion_records(record_path: str):
-    records = pd.read_csv(record_path)
-    records["sub"] = records["data"].apply(bids.get_sub)
-    records["ses"] = records["data"].apply(bids.get_ses)
-    records["path"] = records["data"]
+def estimate_motion_test(model_str: str):
+    torch.cuda.empty_cache()
+    ds = SyntheticDataModule(HyperParamConf(idx=0, batch_size=20), num_workers=6)
+    ds.setup("test")
+    dl = ds.test_dataloader()
 
-    dl = DataLoader(Dataset(records.to_dict("records"), LoadVolume()), batch_size=16)
-    res_dict = estimate_motion_dl(dl)
-    os.makedirs("reports/motion_report", exist_ok=True)
-    pd.DataFrame.from_records(res_dict).to_csv("reports/motion_report/report.csv")
+    model = (
+        RegressionTask.load_from_checkpoint(
+            os.path.join("article/models/", f"{model_str}.ckpt")
+        )
+        .cpu()
+        .eval()
+        .cuda()
+    )
+    motion_res = []
+    with torch.no_grad():
+        for batch in tqdm.tqdm(dl):
+            data = batch["data"].cuda()
+            motions = model.predict_step(data)
+            for label, mot in zip(
+                batch[config.HARD_LABEL_KEY],
+                motions,
+            ):
+                motion_res.append(
+                    {
+                        "label": label,
+                        "motion": mot.cpu(),
+                    }
+                )
+    os.makedirs(f"reports/test_report/synthetic", exist_ok=True)
+    df = pd.DataFrame.from_records(motion_res)
+    df.to_csv(f"reports/test_report/synthetic/{model_str}_pred.csv")
+    pd.DataFrame(
+        {
+            "model": [model],
+            "r2_score": [r2_score(df.label, df.motion)],
+            "rmse": [root_mean_squared_error(df.label, df.motion)],
+        },
+    ).to_csv(f"reports/test_report/synthetic/{model_str}_report.csv")

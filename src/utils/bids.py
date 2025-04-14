@@ -1,5 +1,4 @@
 import glob
-import logging
 import os
 import re
 from typing import Generator, Self
@@ -25,6 +24,7 @@ class BIDSDirectory:
         self.dataset = dataset
         self.base_path = os.path.join(self.root_dir, self.dataset)
         self.has_gen = has_gen
+        self.has_session = len(glob.glob("sub-*/ses-*", root_dir=self.base_path)) > 0
 
     def get_subjects(self) -> list[str]:
         """Retrieve list of all subjects
@@ -61,12 +61,16 @@ class BIDSDirectory:
             Generator[tuple[str, str], None, None]: sub_id, ses_id
         """
         for sub in self.get_subjects():
-            for ses in self.get_session(sub):
-                if self.has_gen:
-                    for gen in self.get_gen(sub, ses):
-                        yield sub, ses, gen
-                else:
-                    yield sub, ses
+            if self.has_session:
+                for ses in self.get_session(sub):
+                    if self.has_gen:
+                        for gen in self.get_gen(sub, ses):
+                            yield sub, ses, gen
+                    else:
+                        yield sub, ses
+            else:
+
+                yield sub, None
 
     def __len__(self):
         return len(list(self.walk()))
@@ -81,17 +85,21 @@ class BIDSDirectory:
         Returns:
             str: Path to T1w
         """
-        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
         if gen_id is not None:
             return glob.glob(
                 os.path.join(
-                    self.base_path, sub_id, ses_id, gen_id, "anat", "*T1w.nii.gz"
+                    self.base_path, sub_id, ses_id, gen_id, "anat", "*T1w.nii*"
                 )
             )[0]
         else:
-            return glob.glob(
-                os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz")
-            )[0]
+            if ses_id is not None:
+                return glob.glob(
+                    os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii*")
+                )[0]
+            else:
+                return glob.glob(
+                    os.path.join(self.base_path, sub_id, "anat", "*T1w.nii*")
+                )[0]
 
     def get_all_T1w(self, sub_id: str, ses_id: str = "ses-1", gen_id=None) -> str:
         """Return path to T1w volume
@@ -103,7 +111,6 @@ class BIDSDirectory:
         Returns:
             str: Path to T1w
         """
-        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
         if gen_id is not None:
             return glob.glob(
                 os.path.join(
@@ -137,16 +144,6 @@ class BIDSDirectory:
         return sub, ses
 
     @staticmethod
-    def HCPDev() -> Self:
-        """Method to create object for HCP Dev"""
-        return BIDSDirectory(config.HCPDEV_FOLDER, root_dir=config.DATASET_ROOT)
-
-    @staticmethod
-    def MRART() -> Self:
-        """Method to create object for HBN CUNY site"""
-        return BIDSDirectory(config.MRART_FOLDER, root_dir=config.DATASET_ROOT)
-
-    @staticmethod
     def FS_SYNTH() -> Self:
         """Method to create object for HBN CUNY site"""
         return BIDSDirectory(
@@ -158,6 +155,8 @@ class ClinicaDirectory(BIDSDirectory):
     def __init__(self, dataset: str, root_dir: str = config.DATASET_ROOT):
         super().__init__(dataset, root_dir)
         self.base_path = os.path.join(self.base_path, "subjects")
+        self.has_session = len(glob.glob("sub-*/ses-*", root_dir=self.base_path)) > 0
+
         print(self.base_path)
 
     def get_all_T1w(self, sub_id: str, ses_id: str = "ses-1") -> str:
@@ -170,7 +169,6 @@ class ClinicaDirectory(BIDSDirectory):
         Returns:
             str: Path to T1w
         """
-        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
         return glob.glob(
             os.path.join(
                 self.base_path,
@@ -191,7 +189,6 @@ class ClinicaDirectory(BIDSDirectory):
         Returns:
             str: Path to T1w
         """
-        # logging.info(os.path.join(self.base_path, sub_id, ses_id, "anat", "*T1w.nii.gz"))
         return glob.glob(
             os.path.join(
                 self.base_path,
@@ -201,16 +198,6 @@ class ClinicaDirectory(BIDSDirectory):
                 "*space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz",
             )
         )[0]
-
-    @staticmethod
-    def HBNCBIC() -> Self:
-        """Method to create object for HBN CIBC site"""
-        return ClinicaDirectory(config.HBNCIBC_FOLDER, root_dir=config.DATASET_ROOT)
-
-    @staticmethod
-    def HBNCUNY() -> Self:
-        """Method to create object for HBN CUNY site"""
-        return ClinicaDirectory(config.HBNCUNY_FOLDER, root_dir=config.DATASET_ROOT)
 
     @staticmethod
     def CBICCUNY() -> Self:

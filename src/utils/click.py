@@ -28,3 +28,33 @@ def get_command(
     for key, value in kwargs.items():
         cmd += f" --{key} {value}"
     return cmd
+
+
+class TupleParamType(click.ParamType):
+    name = "tuple"
+
+    def convert(self, value, param, ctx):
+        if not value:
+            return ()
+        try:
+            return tuple(int(item) for item in value.split(","))
+        except ValueError:
+            self.fail(
+                f"Invalid tuple: {value}. Must be comma-separated integers.", param, ctx
+            )
+
+
+class ClickEnumType(click.ParamType):
+    def __init__(self, enum_class):
+        self.name = enum_class.__name__
+        self.enum_class = enum_class
+
+    def convert(self, value, param, ctx):
+        try:
+            return self.enum_class[value]
+        except KeyError:
+            self.fail(
+                f"Invalid value '{value}'. Valid options: {[e.name for e in self.enum_class]}",
+                param,
+                ctx,
+            )

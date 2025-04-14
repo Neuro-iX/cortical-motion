@@ -20,6 +20,7 @@ def get_calibration_curve(
     Returns:
         Figure: matplotlib's Figure object for the plot
     """
+    sb.set_theme()
     fig = plt.figure(figsize=(6, 5))
     sb.scatterplot(x=label, y=prediction, hue=hue)
     min_lab = min(label)

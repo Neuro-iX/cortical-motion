@@ -1,3 +1,4 @@
+import itertools
 import sys
 
 from lightning import Trainer
@@ -12,9 +13,9 @@ def init_weights(model: nn.Module):
         model (nn.Module): Module to apply init strategy
     """
     if isinstance(model, (nn.Linear, nn.Conv3d, nn.ConvTranspose3d)):
-        nn.init.kaiming_normal_(model.weight)
+        nn.init.kaiming_normal_(model.weight, nonlinearity="relu")
         nn.init.constant_(model.bias, 0)
-    elif isinstance(model, nn.BatchNorm3d):
+    elif isinstance(model, (nn.BatchNorm3d, nn.SyncBatchNorm)):
         nn.init.constant_(model.weight, 1)
         nn.init.constant_(model.bias, 0)
         if model.running_mean.isnan().any():
@@ -36,3 +37,27 @@ class EnsureOneProcess:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         pass
+
+
+def get_hyperparams(hyperparam_grid):
+    """
+    Returns a hyperparameter combination based on the job_id.
+
+    Parameters:
+        job_id (int): An integer between 0 and n (inclusive) where n+1 is the
+                      number of hyperparameter combinations.
+        hyperparam_grid (dict): Dictionary where keys are hyperparameter names and
+                                values are lists of possible values.
+
+    Returns:
+        dict: A dictionary representing one hyperparameter combination.
+    """
+    keys = list(hyperparam_grid.keys())
+    values = [hyperparam_grid[key] for key in keys]
+
+    all_combinations = list(itertools.product(*values))
+
+    return list(
+        dict(zip(keys, selected_combination))
+        for selected_combination in all_combinations
+    )

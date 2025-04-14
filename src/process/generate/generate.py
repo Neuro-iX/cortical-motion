@@ -1,5 +1,6 @@
 """Module to generate synthetic motion data"""
 
+import glob
 import json
 import logging
 import os
@@ -9,9 +10,11 @@ from typing import Callable
 
 import pandas as pd
 import torch
+import torchio as tio
 import tqdm
 from joblib import Parallel, delayed
 from monai.transforms import (
+    CenterSpatialCropd,
     Compose,
     LoadImaged,
     Orientationd,
@@ -20,12 +23,7 @@ from monai.transforms import (
     ScaleIntensityd,
     Transform,
 )
-from torchio.transforms import (
-    RandomBiasField,
-    RandomElasticDeformation,
-    RandomFlip,
-    RandomGamma,
-)
+from torchio.transforms import RandomElasticDeformation, RandomFlip
 
 from src import config
 from src.process.generate.custom_motion import CustomMotion
@@ -44,13 +42,11 @@ class CreateSynthVolume(RandomizableTransform):
     apply_motion: bool
     apply_elastic: bool
     apply_flip: bool
-    apply_corrupt: bool
 
     # Synthetic Parameters, not meant to be change often
     motion_prob: float = 0.98
-    elastic_prob: float = 0.9
+    elastic_prob: float = 0.95
     flip_prob: float = 0.5
-    corrupt_prob: float = 0.3
     goal_motion_range: tuple[float, float]
     num_transforms_range: tuple[int, int] = (2, 8)
     tolerance: float = 0.02
@@ -63,8 +59,8 @@ class CreateSynthVolume(RandomizableTransform):
         self,
         prob: float = 1,
         do_transform: bool = True,
-        goal_motion_range=(0.01, 2.0),
-        motion_prob=0.98,
+        goal_motion_range=(0.01, 3),
+        motion_prob=1,
         motion_only=False,
     ):
         super().__init__(prob, do_transform)
@@ -72,9 +68,6 @@ class CreateSynthVolume(RandomizableTransform):
             num_control_points=7, max_displacement=8, image_interpolation="bspline"
         )
 
-        self.corrupt = Compose(
-            [RandomGamma((-0.05, 0.05)), RandomBiasField(coefficients=(0.0, 0.2))]
-        )
         self.flip = RandomFlip(0, flip_probability=1)
         self.goal_motion = 0
         self.motion_only = motion_only
@@ -92,7 +85,6 @@ class CreateSynthVolume(RandomizableTransform):
             "motion_prob": self.motion_prob,
             "elastic_prob": self.elastic_prob,
             "flip_prob": self.flip_prob,
-            "corrupt_prob": self.corrupt_prob,
             "goal_motion_range": self.goal_motion_range,
             "num_transforms_range": self.num_transforms_range,
             "tolerance": self.tolerance,
@@ -105,7 +97,6 @@ class CreateSynthVolume(RandomizableTransform):
         self.apply_motion = self.R.rand() <= self.motion_prob
         self.apply_elastic = self.R.rand() <= self.elastic_prob
         self.apply_flip = self.R.rand() <= self.flip_prob
-        self.apply_corrupt = self.R.rand() <= self.corrupt_prob
         if self.apply_motion:
             self.goal_motion = self.R.uniform(*self.goal_motion_range)
 
@@ -119,19 +110,20 @@ class CreateSynthVolume(RandomizableTransform):
 
     def __call__(self, data):
         img: torch.Tensor = data["data"]
+
         self.randomize()
         if self.apply_flip and not self.motion_only:
             img = self.flip(img)
         if self.apply_elastic and not self.motion_only:
-            img = self.elastic_tsf(img)
+
+            sub = tio.Subject(data=tio.ScalarImage(tensor=img))
+            transformed = self.elastic_tsf(sub)
+            img = transformed["data"].data
         clear = img.clone()
         if self.apply_motion:
             img, motion_mm = self.motion_tsf(img)
         else:
             motion_mm = 0
-
-        if self.apply_corrupt and not self.motion_only:
-            img = self.corrupt(img)
 
         return {
             "data": img,
@@ -148,38 +140,10 @@ class Preprocess(Compose):
         self.tsf = [
             LoadImaged(keys="data", ensure_channel_first=True, image_only=True),
             Orientationd(keys="data", axcodes="RAS"),
+            CenterSpatialCropd(keys="data", roi_size=config.VOLUME_SHAPE),
             ScaleIntensityd(keys="data", minv=0, maxv=1),
         ]
         super().__init__(self.tsf)
-
-
-class RandomScaleIntensityd(RandomizableTransform):
-    """Transform to randomly scale intensity from min to
-    max_range drawn with uniform distribution"""
-
-    scaler: Callable
-
-    def __init__(self, keys="data", minv=0, max_range=config.INTENSITY_SCALING):
-        """
-        Args:
-            keys (str, optional): keys to apply transform to. Defaults to "data".
-            minv (int, optional): min value for rescale. Defaults to 0.
-            max_range (tuple, optional): max value range for rescale. Defaults to (0.9, 1.1).
-        """
-        super().__init__(prob=1)
-        self.max_range = max_range
-        self.minv = minv
-        self.keys = keys
-
-    def randomize(self):
-        """Create the scale transform with random max (uniform distribution)"""
-        self.scaler = ScaleIntensityd(
-            keys=self.keys, minv=self.minv, maxv=self.R.uniform(*self.max_range)
-        )
-
-    def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        self.randomize()
-        return self.scaler(data)
 
 
 class SyntheticPipeline(Transform):
@@ -206,16 +170,13 @@ class SyntheticPipeline(Transform):
         )
         if self.freesurfer_sim:
             self.synthetic_tsf = CreateSynthVolume(
-                goal_motion_range=(0.01, 2.5), motion_prob=1, motion_only=True
+                goal_motion_range=(0.01, 3), motion_prob=1, motion_only=True
             )
         else:
             self.synthetic_tsf = CreateSynthVolume()
         self.process = Compose(
             [
                 self.synthetic_tsf,
-                RandomScaleIntensityd(
-                    keys="data", minv=0, max_range=config.INTENSITY_SCALING
-                ),
             ]
         )
 
@@ -233,12 +194,13 @@ class SyntheticPipeline(Transform):
         element = {"data": path}
         volume = self.load(element)
         subject, session = self.dataset_dir.extract_sub_ses(element["data"])
-        sub_ses_path = os.path.join(self.new_dataset_dir, subject, session)
 
         generated = []
 
         if self.freesurfer_sim:
-            orig_dir_path = os.path.join(sub_ses_path, "gen-orig", "anat")
+            orig_dir_path = os.path.join(
+                self.new_dataset_dir, f"{subject}_{session}_gen-orig"
+            )
             os.makedirs(orig_dir_path, exist_ok=True)
             new_identifier = f"{subject}_{session}_gen-orig"
             orig_file_path = os.path.join(orig_dir_path, f"{new_identifier}_T1w.nii.gz")
@@ -259,11 +221,10 @@ class SyntheticPipeline(Transform):
             synth = self.process(volume)
 
             gen = f"gen-{str(curr_iter).zfill(3)}"
-            dir_path = os.path.join(sub_ses_path, gen, "anat")
+            dir_path = os.path.join(self.new_dataset_dir, f"{subject}_{session}_{gen}")
 
             new_identifier = f"{subject}_{session}_{gen}"
             corrupted_path = os.path.join(dir_path, f"{new_identifier}_corrupted_T1w")
-            clear_path = os.path.join(dir_path, f"{new_identifier}_clear_T1w")
 
             os.makedirs(dir_path, exist_ok=True)
 
@@ -281,12 +242,6 @@ class SyntheticPipeline(Transform):
                 "identifier": new_identifier,
                 "data": corrupt_rel_path + ".nii.gz",
             }
-            if not self.freesurfer_sim:
-                self.save(synth["clear"], filename=clear_path)
-                clear_rel_path = os.path.relpath(
-                    clear_path, os.path.dirname(self.new_dataset_dir)
-                )
-                sample["clear"] = (clear_rel_path + ".nii.gz",)
             generated.append(sample)
         return generated
 
