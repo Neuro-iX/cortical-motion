@@ -16,6 +16,6 @@ module load python/3.10.2
 
 source ~/fix_clinica/bin/activate
 
-clinica run t1-linear  ~/scratch/Site-RU ~/scratch/Site-RU_preproc -wd $SLURM_TMPDIR/Site-RU_workdir -np 25
+clinica run t1-linear  ~/scratch/HBN_RUBIC ~/scratch/HBN_RUBIC_preproc -wd $SLURM_TMPDIR/HBN_RUBIC_workdir -np 25
 
 

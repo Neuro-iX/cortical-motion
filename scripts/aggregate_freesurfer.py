@@ -63,5 +63,5 @@ def process_ds(ds, time="1:00:00"):
 for ds in datasets:
     process_ds(ds)
 
-# for ds in os.listdir("/home/cbricout/scratch/ProcessedOpenNeuro"):
-#    process_ds(f"ProcessedOpenNeuro/{ds}", time="1:00:00")
+# for ds in os.listdir("/home/cbricout/scratch/OpenNeuro_preproc"):
+#    process_ds(f"OpenNeuro_preproc/{ds}", time="1:00:00")

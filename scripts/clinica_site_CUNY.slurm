@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Site-CUNY-prepoc
+#SBATCH --job-name=HBN-CUNY-prepoc
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=60
 #SBATCH --mem=249G
@@ -16,6 +16,6 @@ module load python/3.9
 
 source ~/clinica_env/bin/activate
 
-clinica run t1-linear  ~/scratch/Site-CUNY ~/scratch/Site-CUNY_preproc -np 60
+clinica run t1-linear  ~/scratch/HBN_CUNY ~/scratch/HBN_CUNY_preproc -np 60
 
 

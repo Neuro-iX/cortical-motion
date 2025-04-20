@@ -97,35 +97,6 @@ def retrieve_fs_meas(dataset: str, synthetic: bool = False):
     return full_df
 
 
-def get_cortical_HCPD_df(model: str):
-    thick_df = retrieve_fs_meas(config.HCPDEV_PREPROC_FOLDER)
-    subject_df = (
-        pd.read_csv("article/participants_csv/HCD_LS_2.0_subject_completeness.csv")
-        .rename(
-            columns={
-                "src_subject_id": "sub",
-                "interview_age": "age",
-            }
-        )[["sub", "age", "sex"]]
-        .iloc[1:]
-    )
-
-    site_sub = pd.read_csv("article/participants_csv/hpc_dev_subjects.csv", index_col=0)
-    site_sub["sub"] = "sub-" + site_sub["sub"].apply(lambda x: x.split("_")[0])
-
-    subject_df["sub"] = "sub-" + subject_df["sub"]
-    motion = pd.read_csv(
-        f"reports/motion_report/HCP-D_preproc/{model}_report.csv",
-        index_col=0,
-    )
-    full_df = motion.merge(thick_df, on=("sub", "ses"))
-    full_df = full_df.merge(subject_df, on=("sub"))
-    full_df = full_df.merge(site_sub, on=("sub"))
-
-    full_df["age"] = full_df["age"].astype(int)
-    return full_df
-
-
 def get_cortical_hcpya_df(model: str):
     thick_df = retrieve_fs_meas("HCP-YA_preproc")
     subject_df = (
@@ -140,34 +111,30 @@ def get_cortical_hcpya_df(model: str):
         .iloc[1:]
     )
 
-    # subject_df["age"] = subject_df["age"].apply(
-    #     lambda x: sum(map(lambda y: int(y), x.split("-"))) / 2
-    # )
     subject_df["sub"] = "sub-" + subject_df["sub"].astype(str)
     motion = pd.read_csv(
-        f"reports/motion_report/HCP-YA_preproc/{model}_report.csv",
+        f"article/reports/motion_report/HCP-YA_preproc/{model}_report.csv",
         index_col=0,
     )
     full_df = motion.merge(thick_df, on=("sub", "ses"))
     full_df = full_df.merge(subject_df, on=("sub"))
-    # full_df["age"] = full_df["age"].astype(int)
     full_df["model"] = model
 
     return full_df
 
 
 def get_cortical_rubic_df(model):
-    thick_df = retrieve_fs_meas(config.HBNRUBIC_FOLDER)
+    thick_df = retrieve_fs_meas("HBN_RUBIC_preproc")
 
     subject_df = pd.read_csv(
-        "article/participants_csv/site_rubic_participants.tsv", sep="\t"
+        "article/participants_csv/HBN_RUBIC_participants.tsv", sep="\t"
     ).rename(
         columns={
             "participant_id": "sub",
         }
     )
     motion = pd.read_csv(
-        f"reports/motion_report/Site-RU_preproc/{model}_report.csv",
+        f"article/reports/motion_report/HBN_RUBIC_preproc/{model}_report.csv",
         index_col=0,
     )
     full_df = motion.merge(thick_df, on=("sub", "ses"))
@@ -196,7 +163,7 @@ def get_cortical_hcpep_df(model):
     #     }
     # )
     motion = pd.read_csv(
-        f"reports/motion_report/HCPEP_preproc/{model}_report.csv",
+        f"article/reports/motion_report/HCPEP_preproc/{model}_report.csv",
         index_col=0,
     )
     full_df = motion.merge(thick_df, on=("sub", "ses"))
@@ -249,13 +216,13 @@ def get_cortical_mrart_df(model):
             "participant_id": "sub",
         }
     )
-    scores = pd.read_csv("article/participants_csv/mrart_scores.tsv", sep="\t")
+    scores = pd.read_csv("article/participants_csv/MRART_scores.tsv", sep="\t")
     scores["sub"] = scores["bids_name"].apply(lambda x: x.split("_")[0])
     scores["ses"] = "ses-" + scores["bids_name"].apply(
         lambda x: x.split("-")[2].split("_")[0]
     )
     motion = pd.read_csv(
-        f"reports/motion_report/MRART_preproc/{model}_report.csv",
+        f"article/reports/motion_report/MRART_preproc/{model}_report.csv",
         index_col=0,
     )
     full_df = motion.merge(thick_df, on=("sub", "ses"))
@@ -271,7 +238,7 @@ def get_cortical_mrart_df(model):
 
 
 def get_cortical_openneuro_df(ds, report_model: str):
-    thick_df = retrieve_fs_meas(os.path.join("ProcessedOpenNeuro", ds))
+    thick_df = retrieve_fs_meas(os.path.join("OpenNeuro_preproc", ds))
     subject_path = os.path.join(
         config.DATASET_ROOT, "OpenNeuro", ds, "participants.tsv"
     )
@@ -279,7 +246,7 @@ def get_cortical_openneuro_df(ds, report_model: str):
         columns={"participant_id": "sub"}
     )
     motion = pd.read_csv(
-        f"reports/motion_report/ProcessedOpenNeuro/{ds}/{report_model}_report.csv",
+        f"article/reports/motion_report/OpenNeuro_preproc/{ds}/{report_model}_report.csv",
         index_col=0,
     )
     if not "ses" in motion.columns or not "ses" in thick_df.columns:
@@ -324,7 +291,7 @@ def get_cortical_openneuro_df(ds, report_model: str):
 def get_all_openneuro(model):
     all_df = []
     for ds in set(
-        os.listdir(os.path.join("reports/motion_report/ProcessedOpenNeuro/"))
+        os.listdir(os.path.join("article/reports/motion_report/OpenNeuro_preproc/"))
     ).difference(remove_openneuro):
         df = get_cortical_openneuro_df(ds, report_model=model)
         columns = list(filter(lambda x: ("lh" in x and "thickness" in x), df.columns))

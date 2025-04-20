@@ -1,0 +1,14 @@
+,sub,ses,motion,path
+0,sub-2010,ses-001,0.06755789232901223,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2010/ses-001/t1_linear/sub-2010_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+1,sub-2003,ses-001,0.07007539669088826,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2003/ses-001/t1_linear/sub-2003_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+2,sub-2009,ses-001,0.06852173617154789,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2009/ses-001/t1_linear/sub-2009_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+3,sub-2004,ses-001,0.06509997367177901,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2004/ses-001/t1_linear/sub-2004_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+4,sub-2013,ses-001,0.06756934815561629,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2013/ses-001/t1_linear/sub-2013_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+5,sub-2014,ses-001,0.0692547226364618,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2014/ses-001/t1_linear/sub-2014_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+6,sub-2005,ses-001,0.0728815760262254,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2005/ses-001/t1_linear/sub-2005_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+7,sub-2008,ses-001,0.07409729157711586,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2008/ses-001/t1_linear/sub-2008_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+8,sub-2002,ses-001,0.07399157653469984,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2002/ses-001/t1_linear/sub-2002_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+9,sub-2011,ses-001,0.07532098079248846,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2011/ses-001/t1_linear/sub-2011_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+10,sub-2006,ses-001,0.06509893409428445,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2006/ses-001/t1_linear/sub-2006_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+11,sub-2001,ses-001,0.06963412306789817,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2001/ses-001/t1_linear/sub-2001_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz
+12,sub-2012,ses-001,0.06890870952397636,/home/cbricout/scratch/OpenNeuro_preproc/ds000200/subjects/sub-2012/ses-001/t1_linear/sub-2012_ses-001_space-MNI152NLin2009cSym_res-1x1x1_T1w.nii.gz

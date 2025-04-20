@@ -90,7 +90,7 @@ def test_model(model: str):
     estimate_motion_test(model)
 
     dataset_list = [
-        "Site-RU_preproc",
+        "HBN_RUBIC_preproc",
         "MRART_preproc",
         "HCPEP_preproc",
         "HCP-YA_preproc",

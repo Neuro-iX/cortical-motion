@@ -145,7 +145,7 @@ class BIDSDirectory:
 
     @staticmethod
     def FS_SYNTH() -> Self:
-        """Method to create object for HBN CUNY site"""
+        """Method to create object for FreeSurfer's analysis dataset"""
         return BIDSDirectory(
             config.FREESURFER_SYNTH_FOLDER, root_dir=config.DATASET_ROOT, has_gen=True
         )
