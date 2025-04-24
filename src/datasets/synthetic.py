@@ -1,6 +1,9 @@
+"""Module defining classes to train on synthetic dataset"""
+
 import logging
 from typing import Callable, Self
 
+import numpy as np
 import torch
 from lightning import LightningDataModule
 from monai.transforms import LoadImage, ScaleIntensity
@@ -14,17 +17,19 @@ from src.utils.soft_label import ToSoftLabel
 
 
 class SyntheticDataset(BaseDataset):
+    """Base Synthetic Dataset Class"""
+
     dataset_dir = config.SYNTH_FOLDER
     csv_path = "scores.csv"
     volumes = [config.DATA_KEY]
 
     labels = [config.LABEL_KEY, config.HARD_LABEL_KEY]
     to_normalize = [config.DATA_KEY]
-    renaming_map = {
+    renaming_map = [
         ("data", config.DATA_KEY),
         ("motion_mm", config.LABEL_KEY),
         ("motion_mm", config.HARD_LABEL_KEY),
-    }
+    ]
 
     def __init__(
         self,
@@ -32,10 +37,10 @@ class SyntheticDataset(BaseDataset):
         transform: Callable | None = None,
         augment: Callable | None = None,
         normalize: Callable | None = None,
-        hp: HyperParamConf = None,
+        hp: HyperParamConf = HyperParamConf(idx=0),
     ):
-        logging.info(f"Dataset Root : {dataset_root}")
-        logging.info(f"Dataset Dir : {config.SYNTH_FOLDER}")
+        logging.info("Dataset Root :%s", dataset_root)
+        logging.info("Dataset Dir : %s", config.SYNTH_FOLDER)
 
         self.rescale_labels = hp.classifier == ClassifierType.VANILLA_REG
         self.soft_label = ToSoftLabel.hp_config(hp)
@@ -49,7 +54,7 @@ class SyntheticDataset(BaseDataset):
         transform: Callable | None = None,
         augment: Callable | None = None,
         normalize: Callable | None = None,
-        hp: HyperParamConf = None,
+        hp: HyperParamConf = HyperParamConf(idx=0),
     ) -> Self:
         """Parameter datasest path with env variables
 
@@ -64,44 +69,62 @@ class SyntheticDataset(BaseDataset):
 
     def prepare_label(
         self, lab_key: str, lab_value: str
-    ) -> torch.IntTensor | torch.FloatTensor:
+    ) -> float | torch.Tensor | np.ndarray:
+        """Apply necessary transform to label can be :
+            - Soft Labelling
+            - Float rescaling in 0-1
+            - Convert to float
+
+        Args:
+            lab_key (str): Key for label to prepare
+            lab_value (str): Value of the label
+
+        Returns:
+            float | torch.Tensor | np.ndarray: Prepared label
+        """
         if lab_key == config.LABEL_KEY:
             soft_lab = self.soft_label.value_to_softlabel(float(lab_value))
             return soft_lab
         if self.rescale_labels:
             return float(lab_value) / 4  # rescale between 0 and 1
-        else:
-            return float(lab_value)
+        return float(lab_value)
 
 
 class TestSyntheticDataset(SyntheticDataset):
+    """Dataset to use synthetic test data"""
+
     group = "test"
 
 
 class ValSyntheticDataset(SyntheticDataset):
+    """Dataset to use synthetic validation data"""
+
     to_augment = [config.DATA_KEY]
     group = "val"
 
 
 class TrainSyntheticDataset(SyntheticDataset):
+    """Dataset to use synthetic training data"""
+
     to_augment = [config.DATA_KEY]
     group = "train"
 
 
 class SyntheticDataModule(LightningDataModule):
     """
-    Base lightning data module
+    Lightning data module wrapping synthetic data
     """
 
     load_tsf = None
     val_ds = None
     train_ds = None
+    test_ds = None
 
     def __init__(
         self,
-        hp: HyperParamConf = None,
+        hp: HyperParamConf = HyperParamConf(idx=0),
         num_workers: int = 9,
-        val_batchsize: int = None,
+        val_batchsize: int | None = None,
     ):
         super().__init__()
         self.val_gen = torch.Generator().manual_seed(config.SEED)

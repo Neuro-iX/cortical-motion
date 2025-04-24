@@ -1,3 +1,5 @@
+"""Module defining functions to modify folder structures"""
+
 import glob
 import os
 import re
@@ -7,6 +9,11 @@ from src.utils.bids import BIDSDirectory
 
 
 def add_session(directory: BIDSDirectory):
+    """Add a default session folder to every subject in a BIDSDirectory
+
+    Args:
+        directory (BIDSDirectory): directory to modify
+    """
     for sub in directory.get_subjects():
 
         if not os.path.isdir(os.path.join(directory.base_path, sub)):
@@ -35,8 +42,8 @@ def add_session(directory: BIDSDirectory):
 
                 os.makedirs(sesdir)
                 for file in glob.glob(os.path.join(src, f"*{a}_T1w*")):
-                    extension = os.path.basename(file).split(".")[1:]
-                    extension = ".".join(extension)
+                    extension_lst = os.path.basename(file).split(".")[1:]
+                    extension = ".".join(extension_lst)
                     newname = f"{sub}_ses-{a}_T1w.{extension}"
                     final_path = os.path.join(sesdir, newname)
                     print(final_path)
@@ -45,10 +52,10 @@ def add_session(directory: BIDSDirectory):
                 shutil.rmtree(src)
         elif len(files) == 1:
             file = os.path.join(directory.base_path, sub, "anat", files[0])
-            sesdir = os.path.join(directory.base_path, sub, f"ses-001", "anat")
+            sesdir = os.path.join(directory.base_path, sub, "ses-001", "anat")
             os.makedirs(sesdir, exist_ok=True)
-            extension = os.path.basename(file).split(".")[1:]
-            extension = ".".join(extension)
+            extension_lst = os.path.basename(file).split(".")[1:]
+            extension = ".".join(extension_lst)
             newname = f"{sub}_ses-001_T1w.{extension}"
             final_path = os.path.join(sesdir, newname)
             print(final_path)

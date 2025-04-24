@@ -1,12 +1,11 @@
 """Module to generate synthetic motion data"""
 
-import glob
 import json
 import logging
 import os
 import shutil
-from numbers import Number
-from typing import Callable
+
+from typing import Any
 
 import pandas as pd
 import torch
@@ -74,7 +73,9 @@ class CreateSynthVolume(RandomizableTransform):
         self.goal_motion_range = goal_motion_range
         self.motion_prob = motion_prob
 
-    def get_parameters(self) -> dict[str, Number | tuple[Number, Number]]:
+    def get_parameters(
+        self,
+    ) -> dict[str, int | float | tuple[int | float, int | float]]:
         """Return a dictionnary summarizing all parameters for transformation
 
         Returns:
@@ -91,7 +92,7 @@ class CreateSynthVolume(RandomizableTransform):
             "motion_only": self.motion_only,
         }
 
-    def randomize(self):
+    def randomize(self, _=None):
         """Determine wich transform to apply"""
         super().randomize(None)
         self.apply_motion = self.R.rand() <= self.motion_prob
@@ -180,7 +181,7 @@ class SyntheticPipeline(Transform):
             ]
         )
 
-    def __call__(self, path: str) -> dict[str, int | float | str | bool]:
+    def __call__(self, path: str) -> list[dict[str, Any]]:
         """Tranform and store the synthetic volume,
         returns all metadata to store as a dict
 
@@ -188,7 +189,7 @@ class SyntheticPipeline(Transform):
             path (str): Element to process
 
         Returns:
-            dict[str, int | float | str | bool]: dict containing
+            dict[str, Any]: dict containing
             the data to store as csv
         """
         element = {"data": path}
@@ -292,7 +293,7 @@ def launch_generate_data(
             SyntheticPipeline(
                 dataset_dir, new_dataset_dir, num_iteration, freesurfer_sim
             )
-        )(dataset_dir.get_T1w(*sub_ses))
+        )(dataset_dir.get_t1w(*sub_ses))
         for sub_ses in dataset_paths
     )
 

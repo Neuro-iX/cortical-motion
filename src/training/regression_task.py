@@ -1,3 +1,5 @@
+"Core training module defining lightning logic"
+
 import gc
 import logging
 import os
@@ -5,6 +7,7 @@ import shutil
 from dataclasses import asdict
 from enum import Enum
 
+import comet_ml
 import numpy as np
 import pandas as pd
 import seaborn as sb
@@ -36,11 +39,12 @@ from src.utils.soft_label import ToSoftLabel
 
 
 class RegressionTask(LightningModule):
+    """Base LightningModule for regression task"""
 
     def __init__(
         self,
         hp: HyperParamConf,
-        bin_range: tuple[float] = config.MOTION_BIN_RANGE,
+        bin_range: tuple[float, float] = config.MOTION_BIN_RANGE,
     ):
         super().__init__()
         self.need_postprocess = hp.classifier != ClassifierType.VANILLA_REG
@@ -65,26 +69,31 @@ class RegressionTask(LightningModule):
         self.kl_loss = KLDivLoss(hp)
         self.l2_loss = L2Loss(hp)
 
-        self.label = []
-        self.prediction = []
-        self.test_outputs = []  # Container for test step outputs
+        self.label: list[float] = []
+        self.prediction: list[float] = []
+        self.test_outputs: list[dict[str, float]] = (
+            []
+        )  # Container for test step outputs
         self.val_step = 0
         self.save_hyperparameters()
 
-    def predict_step(self, batch):
+    def predict_step(self, batch, batch_idx=0):
         y = self.model(batch)
         return self.process_out(y)
 
     def process_out(self, y, cuda=False):
+        """Definine postprocessing operations when using softlabels"""
         if self.need_postprocess:
             return self.soft_label.logsoft_to_hardlabel(y, cuda)
-        else:
-            return y.flatten()
+        return y.flatten()
 
-    def compute_losses(self, model_out, hard_label, labels, prefix="train"):
+    def compute_losses(
+        self, model_out, hard_label, labels, prefix="train"
+    ) -> torch.Tensor:
+        """Compute losses, need to be implemented in children classes"""
         pass
 
-    def training_step(self, batch, _):
+    def training_step(self, batch, batch_idx=0):
 
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
@@ -104,7 +113,7 @@ class RegressionTask(LightningModule):
         train_loss = self.compute_losses(logsoft_reg, hard_label, labels, "train")
         return train_loss
 
-    def validation_step(self, batch, _):
+    def validation_step(self, batch, batch_idx=0):
 
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
@@ -145,25 +154,30 @@ class RegressionTask(LightningModule):
             "rmse",
             root_mean_squared_error(self.label, self.prediction),
         )
-        self.logger.experiment.log_figure(
-            figure=get_calibration_curve(self.prediction, self.label),
-            figure_name="calibration",
-            step=self.global_step,
-        )
-        jp = sb.jointplot(
-            x=self.label,
-            y=self.prediction,
-        )
-        self.logger.experiment.log_figure(
-            figure=jp.figure,
-            figure_name="hist",
-            step=self.global_step,
-        )
+        if (
+            self.logger is not None
+            and hasattr(self.logger, "experiment")
+            and isinstance(self.logger.experiment, comet_ml.Experiment)
+        ):
+            self.logger.experiment.log_figure(
+                figure=get_calibration_curve(self.prediction, self.label),
+                figure_name="calibration",
+                step=self.global_step,
+            )
+            jp = sb.jointplot(
+                x=self.label,
+                y=self.prediction,
+            )
+            self.logger.experiment.log_figure(
+                figure=jp.figure,
+                figure_name="hist",
+                step=self.global_step,
+            )
         self.label = []
         self.prediction = []
         plt.close()
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx=0):
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
         hard_label = batch[config.HARD_LABEL_KEY]
@@ -251,6 +265,7 @@ class RegressionTask(LightningModule):
 
 
 class KLRegressionTask(RegressionTask):
+    """Implement Regression task for KL Divergence"""
 
     def compute_losses(self, model_out, hard_label, labels, prefix="train"):
         loss = self.kl_loss(model_out, labels, hard_label)
@@ -260,6 +275,7 @@ class KLRegressionTask(RegressionTask):
 
 
 class L2RegressionTask(RegressionTask):
+    """Implement Regression task for L2 loss"""
 
     def compute_losses(self, model_out, hard_label, labels, prefix="train"):
         loss = self.l2_loss(self.process_out(model_out, cuda=True), hard_label)
@@ -269,6 +285,7 @@ class L2RegressionTask(RegressionTask):
 
 
 class MixedRegressionTask(RegressionTask):
+    "Implement Regression task using a mix of KL and L2 loss"
 
     def compute_losses(self, model_out, hard_label, labels, prefix="train"):
         processed = self.process_out(model_out, cuda=True)
@@ -290,15 +307,24 @@ class MixedRegressionTask(RegressionTask):
 
 
 def launch_regression_training(hp: HyperParamConf):
+    """Launch a regression experiment
+
+    Args:
+        hp (HyperParamConf): experiment's hyperparameters
+    """
     torch.set_float32_matmul_precision("medium")
     torch.cuda.empty_cache()
     seed_everything(config.SEED, workers=True)
+    model: RegressionTask | None = None
     if hp.loss == RegressionLossType.KL_DIV:
         model = KLRegressionTask(hp)
     elif hp.loss == RegressionLossType.L2:
         model = L2RegressionTask(hp)
     elif hp.loss == RegressionLossType.MIXED:
         model = MixedRegressionTask(hp)
+
+    assert model is not None
+
     model_name = f"GenericSFCN_{hp.idx}"
     save_model_path = os.path.join("model_report", model_name)
 
@@ -337,8 +363,9 @@ def launch_regression_training(hp: HyperParamConf):
             min_lr=1e-7,
             num_training=300,
         )
-        fig = finder.plot(suggest=True)
-        comet_logger.experiment.log_figure(figure=fig, figure_name="learning rate")
+        if finder is not None:
+            fig = finder.plot(suggest=True)
+            comet_logger.experiment.log_figure(figure=fig, figure_name="learning rate")
     trainer.fit(model, datamodule=SyntheticDataModule(hp, 4))
 
     with EnsureOneProcess(trainer):
@@ -353,22 +380,27 @@ def launch_regression_training(hp: HyperParamConf):
         logging.warning("Pretrained model uploaded, saved at : %s", save_model_path)
 
         df = pd.DataFrame([asdict(hp)])
-        df["r2_score"] = checkpoint.best_model_score.item()
+        r2 = 0.0
+        if checkpoint.best_model_score is not None:
+            r2 = checkpoint.best_model_score.item()
+        df["r2_score"] = r2
         df.to_csv(os.path.join(save_model_path, "report.csv"))
         logging.warning("Report saved at : %s", save_model_path)
 
         logging.warning("Running test on best model checkpoint...")
-        best_model = RegressionTask.load_from_checkpoint(checkpoint.best_model_path)
+        best_model = RegressionTask.load_from_checkpoint(
+            checkpoint_path=checkpoint.best_model_path
+        )
         trainer.test(best_model, datamodule=SyntheticDataModule(hp, 4, 16))
         logging.warning("Test completed.")
 
 
-def generate_command(config: HyperParamConf) -> str:
+def generate_command(hp: HyperParamConf) -> str:
     """Convert a HyperParamConf object into a CLI command string."""
     parts = []
     defaults = asdict(HyperParamConf(idx=0))  # Get default values
 
-    for param, value in asdict(config).items():
+    for param, value in asdict(hp).items():
         if value == defaults[param]:
             continue  # Skip idx and parameters matching defaults
         cli_name = f'--{param.replace("_", "-")}'
@@ -384,6 +416,12 @@ def generate_command(config: HyperParamConf) -> str:
 
 
 def tune_model(tuning_task: TuningTask):
+    """Launch a tuning experiment
+
+    Args:
+        tuning_task (TuningTask): Task defining the set of
+            Hyperparameters to test
+    """
     for hp in SAMPLE_TUNING[tuning_task]():
         hp.task = tuning_task
         slurm = get_python_slurm(

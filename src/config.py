@@ -1,3 +1,4 @@
+"""Define constant variables and retrieve .env configuration"""
 import os
 
 import dotenv
@@ -40,7 +41,6 @@ PATH_FREESURFER_NARVAL = os.getenv("PATH_FREESURFER_NARVAL")
 ## MOTION MM PARAMETERS
 MOTION_N_BINS = 50
 MOTION_BIN_RANGE = (-0.5, 4.5)
-# MOTION_BIN_RANGE = (-0.4, 1.4)
 
 MOTION_BIN_STEP = (MOTION_BIN_RANGE[1] - MOTION_BIN_RANGE[0]) / MOTION_N_BINS
 

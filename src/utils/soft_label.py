@@ -1,3 +1,11 @@
+"""
+Module to use the soft labelling described in :
+    Peng, H., Gong, W., Beckmann, C. F., Vedaldi, A., & Smith, S. M. (2021).
+    Accurate brain age prediction with lightweight deep neural networks.
+    Medical Image Analysis, 68, 101871.
+    https://doi.org/10.1016/j.media.2020.101871
+"""
+
 from __future__ import annotations
 
 from typing import Dict, Hashable, Mapping, Union
@@ -95,15 +103,15 @@ class ToSoftLabel(MapTransform):
         return torch.exp(x)
 
     def value_to_softlabel(
-        self, x: torch.Tensor | np.ndarray
+        self, x: torch.Tensor | np.ndarray | float
     ) -> torch.Tensor | np.ndarray:
         """Convert a vector of single values to a vector of soft label
 
         Args:
-            x (torch.Tensor | np.array): Vector of label as Tensor or array
+            x (torch.Tensor | np.array | float): Vector of label as Tensor or array
 
         Returns:
-            torch.Tensor |np.array: Vector of softlabel in the input type
+            torch.Tensor | np.array | float: Vector of softlabel in the input type
         """
         if torch.is_tensor(x):
             was_tensor = True

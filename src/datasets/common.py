@@ -1,7 +1,10 @@
+"""Module defining abstract class than can be exxtend to implement a dataset"""
+
 import abc
 import os
-from typing import Callable, Self
+from typing import Any, Callable, Self
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -77,35 +80,35 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
     def __getitem__(self, idx):
         if self.cache and self.cached_data[idx] is not None:
             return self.cached_data[idx]
-        else:
-            item = self.csv_data.iloc[idx]
 
-            dict_item = {}
-            for vol_key in self.volumes:
-                path_to_vol = os.path.join(item["base_path"], item[vol_key])
-                dict_item[vol_key] = self.load_volume(vol_key, path_to_vol)
+        item = self.csv_data.iloc[idx]
 
-            for vol_key in self.to_augment:
-                dict_item = self.apply_augment(dict_item)
+        dict_item = {}
+        for vol_key in self.volumes:
+            path_to_vol = os.path.join(item["base_path"], item[vol_key])
+            dict_item[vol_key] = self.load_volume(vol_key, path_to_vol)
 
-            for vol_key in self.to_normalize:
-                dict_item[vol_key] = self.normalize(dict_item[vol_key])
+        for vol_key in self.to_augment:
+            dict_item = self.apply_augment(dict_item)
 
-            for lab_key in self.labels:
-                dict_item[lab_key] = self.prepare_label(lab_key, item[lab_key])
+        for vol_key in self.to_normalize:
+            dict_item[vol_key] = self.normalize(dict_item[vol_key])
 
-            for keep_key in self.to_keep:
-                dict_item[keep_key] = item[keep_key]
-            if self.cache:
-                self.cached_data[idx] = dict_item
-            return dict_item
+        for lab_key in self.labels:
+            dict_item[lab_key] = self.prepare_label(lab_key, item[lab_key])
+
+        for keep_key in self.to_keep:
+            dict_item[keep_key] = item[keep_key]
+        if self.cache:
+            self.cached_data[idx] = dict_item
+        return dict_item
 
     def rename_fields(self):
         """Simple method for renaming logic"""
         for old_key, new_key in self.renaming_map:
             self.csv_data[new_key] = self.csv_data[old_key].copy()
 
-    def load_volume(self, vol_key: str, vol_path: str) -> torch.Tensor:
+    def load_volume(self, vol_key: str, vol_path: str) -> torch.Tensor | str:
         """Should load the volume with the needed transforms
 
         Args:
@@ -117,19 +120,25 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
         """
         if self.transform is not None:
             return self.transform(vol_path)
-        else:
-            return vol_path
+        return vol_path
 
-    def apply_augment(self, dict_data) -> torch.Tensor:
+    def apply_augment(self, dict_data: dict[str, Any]) -> dict[str, Any]:
+        """Apply augmentation defined in `augment`
+
+        Args:
+            dict_data (dict[str,Any]): Data as a dictionnary
+
+        Returns:
+            dict[str,Any]: Dictionnary data with augmentation applied
+        """
         if self.augment is not None:
             return self.augment(dict_data)
-        else:
-            return dict_data
+        return dict_data
 
     @abc.abstractmethod
     def prepare_label(
         self, lab_key: str, lab_value: str
-    ) -> torch.IntTensor | torch.FloatTensor:
+    ) -> float | torch.Tensor | np.ndarray:
         """Should load the volume with the needed transforms
 
         Args:

@@ -1,8 +1,12 @@
+"""Module for network / training utilities"""
+
 import itertools
 import sys
+from typing import Any
 
 from lightning import Trainer
 from torch import nn
+import torch
 
 
 def init_weights(model: nn.Module):
@@ -14,13 +18,22 @@ def init_weights(model: nn.Module):
     """
     if isinstance(model, (nn.Linear, nn.Conv3d, nn.ConvTranspose3d)):
         nn.init.kaiming_normal_(model.weight, nonlinearity="relu")
-        nn.init.constant_(model.bias, 0)
+        if isinstance(model.bias, torch.Tensor):
+            nn.init.constant_(model.bias, 0)
     elif isinstance(model, (nn.BatchNorm3d, nn.SyncBatchNorm)):
         nn.init.constant_(model.weight, 1)
-        nn.init.constant_(model.bias, 0)
-        if model.running_mean.isnan().any():
+        if isinstance(model.bias, torch.Tensor):
+            nn.init.constant_(model.bias, 0)
+
+        if (
+            isinstance(model.running_mean, torch.Tensor)
+            and model.running_mean.isnan().any()
+        ):
             model.running_mean.fill_(0)
-        if model.running_var.isnan().any():
+        if (
+            isinstance(model.running_var, torch.Tensor)
+            and model.running_var.isnan().any()
+        ):
             model.running_var.fill_(1)
 
 
@@ -39,7 +52,7 @@ class EnsureOneProcess:
         pass
 
 
-def get_hyperparams(hyperparam_grid):
+def get_hyperparams(hyperparam_grid: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Returns a hyperparameter combination based on the job_id.
 

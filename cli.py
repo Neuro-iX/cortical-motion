@@ -1,8 +1,8 @@
 import click
 import matplotlib
 
-from src.process.commands import process
-from src.training.commands import train
+from src.process.process import process
+from src.training.training import train
 from src.utils.log import rich_logger
 
 matplotlib.use("Agg")

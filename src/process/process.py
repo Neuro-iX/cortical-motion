@@ -1,3 +1,5 @@
+"""Module defining commands related to processing"""
+
 import glob
 import logging
 
@@ -5,6 +7,7 @@ import click
 import nibabel as nib
 import pandas as pd
 import tqdm
+from nibabel.filebasedimages import ImageFileError
 
 from src import config
 from src.process.freesurfer import run_freesurfer_cortical_thichness
@@ -23,7 +26,7 @@ def process():
 @process.command()
 @click.option("-d", "--dataset", type=str, default=None)
 def fs(dataset: str):
-    """Compute freesurfer cortcial thickness stats"""
+    """Compute freesurfer cortical thickness stats"""
     ds = ClinicaDirectory(dataset)
     print(len(list(ds.walk())))
     for sub, ses in list(ds.walk())[:1000]:
@@ -34,8 +37,8 @@ def fs(dataset: str):
 @click.option("-O", "--orig", is_flag=True)
 @click.option("-P", "--to_process", type=str, default="None")
 def synth_fs(orig: bool, to_process: str):
-    """Compute freesurfer cortcial thickness stats"""
-    fs_synth = BIDSDirectory.FS_SYNTH()
+    """Compute freesurfer cortical thickness stats on synthetic data"""
+    fs_synth = BIDSDirectory.fs_synth()
 
     if to_process is not None:
         files = pd.read_csv(to_process, index_col=0)
@@ -49,11 +52,14 @@ def synth_fs(orig: bool, to_process: str):
 
 @process.command()
 @slurm_adaptor(n_cpus=64, mem="249G", time="30:00:00")
-@click.option("-n", "--name")
+@click.option(
+    "-n", "--name", help="Name of the synthetic data folder. Default to config"
+)
 def generate_data(name):
-    """Create synthetic motion data from HCPDev"""
+    """Create synthetic motion data from HBN's CBIC + CUNY sites.
+    Volumes are previously filtered"""
     launch_generate_data(
-        ClinicaDirectory.CBICCUNY(),
+        ClinicaDirectory.cbic_cuny(),
         config.SYNTH_FOLDER if name is None else name,
         config.DATASET_ROOT,
         config.NUM_ITERATIONS,
@@ -63,9 +69,12 @@ def generate_data(name):
 @process.command()
 @slurm_adaptor(n_cpus=64, mem="249G", time="5:00:00")
 def generate_freesurfer_data():
-    """Create synthetic motion data from HCPDev"""
+    """Create synthetic motion data from HBN's CBIC + CUNY sites.
+    Volumes are previously filtered.
+    This data is specific for FreeSurfer analysis, it includes a specific
+    configuration and no elastic deformation"""
     launch_generate_data(
-        ClinicaDirectory.CBICCUNY(),
+        ClinicaDirectory.cbic_cuny(),
         config.FREESURFER_SYNTH_FOLDER,
         config.DATASET_ROOT,
         config.FREESURFER_NUM_ITERATIONS,
@@ -86,6 +95,14 @@ def quant_motion(dataset: str, model: str):
 @slurm_adaptor(n_cpus=6, n_gpus=1, mem="60G", time="2:30:00")
 @click.option("-m", "--model", type=str, default=None)
 def test_model(model: str):
+    """Test a given model with all datasets :
+    - Synthetic Test
+    - HBN-RUBIC
+    - MR-ART
+    - HCPEP
+    - HCP-YA
+    - All OpenNeuro"""
+
     logging.info("testing model on synth data")
     estimate_motion_test(model)
 
@@ -105,22 +122,25 @@ def test_model(model: str):
 @process.command()
 @click.option("-d", "--dataset", type=str, help="dataset name in DATASET_ROOT")
 def check_bids(dataset: str):
+    """Check if BIDS dataset contains all T1 volumes"""
     ds: BIDSDirectory = BIDSDirectory(dataset)
     for sub, ses in tqdm.tqdm(ds.walk()):
         try:
-            t1 = ds.get_T1w(sub, ses)
+            t1 = ds.get_t1w(sub, ses)
             nib.load(t1).get_fdata()
-        except:
-            logging.info(f"missing {sub}, {ses}, {t1}")
+        except (FileNotFoundError, ImageFileError) as e:
+            logging.info("missing %s, %s, %s : %s", sub, ses, t1, e)
 
 
 @process.command()
 def add_ses_openneuro():
+    """Modify OpenNeuros datasets structures to include
+    default session folders"""
     for dataset in glob.glob(
         "OpenNeuro/ds*",
         root_dir=config.DATASET_ROOT,
     ):
-        logging.info(f"Starting processing OpenNeuro dataset {dataset}")
+        logging.info("Starting processing OpenNeuro dataset %s", dataset)
         openneuro_ds_dir = BIDSDirectory(dataset)
         add_session(openneuro_ds_dir)
 
@@ -128,14 +148,15 @@ def add_ses_openneuro():
 @process.command()
 @click.option("-d", "--dataset", type=str, help="dataset name in DATASET_ROOT")
 def add_ses(dataset):
-    logging.info(f"Starting processing dataset {dataset}")
+    """Modify dataset structures to include default session folders"""
+    logging.info("Starting processing dataset %s", dataset)
     openneuro_ds_dir = BIDSDirectory(dataset)
     add_session(openneuro_ds_dir)
 
 
 @process.command()
 def openneuro_fs():
-    """Compute freesurfer cortcial thickness stats"""
+    """Compute freesurfer cortical thickness stats on OpenNeuro"""
     for dataset in glob.glob(
         "OpenNeuro_preproc/ds*",
         root_dir=config.DATASET_ROOT,
@@ -143,14 +164,3 @@ def openneuro_fs():
         openneuro_ds_dir = ClinicaDirectory(dataset)
         for sub, ses in list(openneuro_ds_dir.walk()):
             run_freesurfer_cortical_thichness(sub, ses, openneuro_ds_dir)
-
-
-@process.command()
-@click.option("-m", "--model", type=str, default=None)
-def openneuro_quant_motion(model):
-    for dataset in glob.glob(
-        "OpenNeuro_preproc/ds*",
-        root_dir=config.DATASET_ROOT,
-    ):
-        openneuro_ds_dir = ClinicaDirectory(dataset)
-        estimate_motion_bids(openneuro_ds_dir, model)

@@ -1,3 +1,5 @@
+"""Module defining utility to instantiate python logging"""
+
 import logging
 from rich.logging import RichHandler
 

@@ -1,8 +1,14 @@
+"""Module defining MRI related augmentation"""
+
 from monai.transforms import OneOf, RandHistogramShift, Randomizable
 from torchio.transforms import RandomBlur, RandomFlip, RandomGamma, RandomNoise
 
 
 class AugmentMRI(Randomizable):
+    """MRI Augmentation through Flip, Blur, Noise and contrast changes"""
+
+    apply_augment: bool
+
     def __init__(
         self,
         volume_key,

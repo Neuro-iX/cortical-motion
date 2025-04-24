@@ -1,7 +1,8 @@
 """
 This code comes from : https://github.com/Deep-MI/head-motion-tools/tree/main
 Presented in the article : Pollak, C., Kügler, D., Breteler, M.M. and Reuter, M., 2023.
-Quantifying MR head motion in the Rhineland Study–A robust method for population cohorts. NeuroImage, 275, p.120176.
+Quantifying MR head motion in the Rhineland Study–A robust method 
+for population cohorts. NeuroImage, 275, p.120176.
 """
 
 import warnings
@@ -66,7 +67,8 @@ def get_motion_dist(affine_matrices: np.ndarray) -> float:
 def ms_dev(A, B=np.identity(4), x=np.zeros((1, 3)), r=80):
     """
     Calculates the root mean square deviation of two homogenous transformations in 3d
-    This distance is used in Jenkinson 1999 RMS deviation - tech report www.fmrib.ox.ac.uk/analysis/techrep .
+    This distance is used in Jenkinson 1999 RMS deviation - tech report
+    www.fmrib.ox.ac.uk/analysis/techrep .
 
     A       homogenous transformation matrix
     B       homogenous transformation matrix (identity by default)
@@ -125,11 +127,14 @@ def quantify_deviation(
 
     Parameters:
     transformation_series: numpy array of homogenous transformations
-    head_center: numpy array representing the center of the head (default: 3x3 array of zeros)
-    zeroIn: boolean indicating whether to calculate the distance from the starting point (default: True)
+    head_center: numpy array representing the center of the head
+        (default: 3x3 array of zeros)
+    zeroIn: boolean indicating whether to calculate the distance
+        from the starting point (default: True)
     seq: MRI sequence to analyze (default: 'T1')
     mode: string indicating the mode to use (default: 'RMSD')
-    correct_timestamps: boolean indicating whether to correct timestamps (default: True)
+    correct_timestamps: boolean indicating whether to correct
+        timestamps (default: True)
     """
     if not (mode == "RMSD" or mode == "centroid"):
         raise ValueError("Wrong mode identifier")

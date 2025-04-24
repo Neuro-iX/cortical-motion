@@ -1,8 +1,8 @@
+"""Module defining transform to use when loading volumes"""
+
 import logging
 
 import matplotlib
-import numpy as np
-from matplotlib import pyplot as plt
 from monai.transforms import (
     CenterSpatialCropd,
     Compose,
@@ -12,25 +12,12 @@ from monai.transforms import (
     Transform,
 )
 
-
-def plot_mri(mri):
-    plt.figure(figsize=(20, 20))
-    plt.subplot(1, 3, 1)
-    plt.imshow(np.rot90(mri[0, 100, :, :]), cmap="gray")
-    plt.axis("off")
-    plt.tight_layout()
-    plt.subplot(1, 3, 2)
-    plt.imshow(np.rot90(mri[0, :, 100, :]), cmap="gray")
-    plt.axis("off")
-    plt.tight_layout()
-    plt.subplot(1, 3, 3)
-    plt.imshow(np.rot90(mri[0, :, :, 100]), cmap="gray")
-    plt.axis("off")
-    plt.tight_layout()
-    plt.show()
+from src.utils.plot import plot_mri
 
 
 class LogData(Transform):
+    """Transform to log data"""
+
     def __init__(self, keys="data"):
         self.keys = keys
 
@@ -40,6 +27,8 @@ class LogData(Transform):
 
 
 class PlotData(Transform):
+    """Transform to plot MRI data"""
+
     def __init__(self, keys="data"):
         self.keys = keys
 

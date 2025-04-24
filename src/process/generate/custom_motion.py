@@ -1,3 +1,6 @@
+"""Module containing our modification on TorchIO's transform to generate motion
+with a magnitude goal"""
+
 from collections import defaultdict
 from typing import Dict
 
@@ -55,10 +58,10 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
         """Same transformation as torchIO RandomMotion, retry until goal motion is produced
 
         Args:
-            image (torch.Tensor): torchIO subject to use
+            image (torch.Tensor): Volume tensor
 
         Returns:
-            Subject: Subject with modified volumes
+            tuple[torch.Tensor, float]: Subject with modified volumes
         """
         arguments: Dict[str, dict] = defaultdict(dict)
         motion_mm = -1

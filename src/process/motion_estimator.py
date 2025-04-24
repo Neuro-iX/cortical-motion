@@ -1,3 +1,5 @@
+"""Module used to do inference on trained motion models"""
+
 import os
 
 import pandas as pd
@@ -16,6 +18,15 @@ from src.utils.load import LoadVolume
 
 
 def estimate_motion_dl(dl: DataLoader, model_str: str) -> list[dict[str, float]]:
+    """Estimqte motion using a dataloader
+
+    Args:
+        dl (DataLoader): Dataloader containing MRI
+        model_str (str): Name of model (stored in article/models)
+
+    Returns:
+        list[dict[str, float]]: list of predictions
+    """
     model = (
         RegressionTask.load_from_checkpoint(
             os.path.join("article/models/", f"{model_str}.ckpt")
@@ -45,11 +56,17 @@ def estimate_motion_dl(dl: DataLoader, model_str: str) -> list[dict[str, float]]
     return motion_res
 
 
-def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str = None):
+def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str):
+    """Estimate motion using a BIDSDirectory
+    Store a csv report in reports/motion_report/{dataset_name}
+    Args:
+        dataset_dir (BIDSDirectory): Directory to process
+        model_str (str): Name of model (stored in article/models)
+    """
     torch.cuda.empty_cache()
     data = []
     for sub, ses in dataset_dir.walk():
-        for t1w in dataset_dir.get_all_T1w(sub, ses):
+        for t1w in dataset_dir.get_all_t1w(sub, ses):
             data.append(
                 {
                     "sub": sub,
@@ -60,8 +77,6 @@ def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str = None):
             )
 
     dl = DataLoader(Dataset(data, LoadVolume()), batch_size=20, num_workers=6)
-    if model_str is None:
-        model_str = os.path.basename(config.MOTION_MODEL_PATH).split(".")[:-1]
     res_dict = estimate_motion_dl(dl, model_str)
     os.makedirs(f"reports/motion_report/{dataset_dir.dataset}", exist_ok=True)
     pd.DataFrame.from_records(res_dict).to_csv(
@@ -70,6 +85,11 @@ def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str = None):
 
 
 def estimate_motion_test(model_str: str):
+    """Estimate motion on synthetic test set
+    Store a csv report in reports/test_report/synthetic
+    Args:
+        model_str (str): Name of model (stored in article/models)
+    """
     torch.cuda.empty_cache()
     ds = SyntheticDataModule(HyperParamConf(idx=0, batch_size=20), num_workers=6)
     ds.setup("test")
@@ -98,7 +118,7 @@ def estimate_motion_test(model_str: str):
                         "motion": mot.cpu(),
                     }
                 )
-    os.makedirs(f"reports/test_report/synthetic", exist_ok=True)
+    os.makedirs("reports/test_report/synthetic", exist_ok=True)
     df = pd.DataFrame.from_records(motion_res)
     df.to_csv(f"reports/test_report/synthetic/{model_str}_pred.csv")
     pd.DataFrame(

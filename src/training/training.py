@@ -1,9 +1,10 @@
+"""Module defining commands for training"""
+
 import click
 
 from src.training.hyperparameters import (
     ActivationType,
     ClassifierType,
-    DatasetModeType,
     DownsampleType,
     HyperParamConf,
     NormType,
@@ -11,13 +12,13 @@ from src.training.hyperparameters import (
     TuningTask,
 )
 from src.training.regression_task import launch_regression_training, tune_model
-from src.utils.click import ClickEnumType, TupleParamType
+from src.utils.click_commands import ClickEnumType, TupleParamType
 from src.utils.slurm import slurm_adaptor
 
 
 @click.group()
 def train():
-    pass
+    """Command group for training models"""
 
 
 @train.command()
@@ -27,7 +28,7 @@ def train():
     type=ClickEnumType(TuningTask),
     required=True,
 )
-def tune(task: str):
+def tune(task: TuningTask):
     """Launch basic training for Combine and Regression task"""
     tune_model(task)
 
@@ -56,10 +57,10 @@ def tune(task: str):
 @click.option("--dropout", type=float)
 @click.option("--hist-shift", type=bool)
 @click.option("--augmentation", type=bool)
-@click.option("--dataset-mode", type=ClickEnumType(DatasetModeType))
 @click.option("--soft-label-func", type=str)
 @click.option("--weighted-loss", type=bool)
 def regression(**kwargs):
+    """Launch a training of a regression model using default or given parameters"""
     provided_params = {
         param: values
         for param, values in kwargs.items()

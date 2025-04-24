@@ -1,12 +1,13 @@
+"""Module containing the logic to automate freesurfer jobs on Narval"""
+
 import abc
 import logging
 import os
 import shutil
-from typing import Self
 
 from simple_slurm import Slurm
 
-import src.config as config
+from src import config
 from src.utils.bids import BIDSDirectory
 
 
@@ -31,17 +32,20 @@ class ApptainerEnv(Command):
         """Args:
         sif_file (str): Path to SIF container"""
         self.sif_file = sif_file
-        self.bind_pairs = []
-        self.commands = []
+        self.bind_pairs: list[tuple[str, str]] = []
+        self.commands: list[str] = []
         self.cmd = "apptainer run "
 
     @staticmethod
-    def narval_freesurfer() -> Self:
+    def narval_freesurfer() -> "ApptainerEnv":
         """Use config.PATH_FREESURFER_NARVAL
 
         Returns:
             ApptainerEnv: Environement for free surfer container
         """
+        assert (
+            config.PATH_FREESURFER_NARVAL is not None
+        ), "No path to freesurfer defined"
         return ApptainerEnv(config.PATH_FREESURFER_NARVAL)
 
     def bind(self, orig: str, mnt: str):
@@ -82,7 +86,7 @@ class ApptainerEnv(Command):
 class FreeSurferReconAll(Command):
     """Object to wrap FreeSurfer's recon-all command"""
 
-    def __init__(self, subject: str, path: str, subject_dir: str = None):
+    def __init__(self, subject: str, path: str, subject_dir: str | None = None):
         """Args:
         subject (str): Subject directory output name
         path (str): Path to the subject T1w volume
@@ -94,7 +98,7 @@ class FreeSurferReconAll(Command):
 
 
 def run_freesurfer_cortical_thichness(
-    sub_id: str, ses_id: str, dataset: BIDSDirectory, gen_id: str = None
+    sub_id: str, ses_id: str, dataset: BIDSDirectory, gen_id: str | None = None
 ) -> int:
     """Launch Slurm job to process one subject with freesurfer.
     Only keep cortical thickness stats.
@@ -140,12 +144,12 @@ def run_freesurfer_cortical_thichness(
         fs_dir += gen_id
         freesurfer_cmd = FreeSurferReconAll(
             fs_dir,
-            dataset.get_T1w(sub_id, ses_id, gen_id=gen_id),
+            dataset.get_t1w(sub_id, ses_id, gen_id=gen_id),
             subject_dir="/tmp",
         )
     else:
         freesurfer_cmd = FreeSurferReconAll(
-            fs_dir, dataset.get_T1w(sub_id, ses_id), subject_dir="/tmp"
+            fs_dir, dataset.get_t1w(sub_id, ses_id), subject_dir="/tmp"
         )
     apptainer_env.add_command(freesurfer_cmd.compile())
     job.add_cmd(apptainer_env.compile())

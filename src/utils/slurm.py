@@ -1,12 +1,14 @@
+"""Simplify usage of Slurm with click wrapper and job creators"""
+
 import sys
 from functools import wraps
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 import click
 from simple_slurm import Slurm
 
 from src import config
-from src.utils.click import get_command
+from src.utils.click_commands import get_command
 
 slurm_arg = click.option(
     "--slurm", "-S", help="Launch fonction as Slurm job", is_flag=True
@@ -49,8 +51,8 @@ def slurm_adaptor(
                     print("add tmp data command")
                     copy_data_tmp(job, ["SynthCortical"])
                 launch_as_slurm(job)
-            else:
-                return func(*args, **kwargs)
+                return None
+            return func(*args, **kwargs)
 
         return wrapper
 
@@ -58,13 +60,26 @@ def slurm_adaptor(
 
 
 def slurm_loop_adaptor(
-    iterator: Iterable[any],
+    iterator: Iterable[Any],
     param: str,
     n_cpus: int = 1,
     n_gpus: int = 0,
     mem: str = "8G",
     time: str = "1:00:00",
 ):
+    """Generate a decorator that iterate through different values
+    for a given parameter and launch each value as different
+    slurm jobs
+
+    Args:
+        iterator (Iterable[Any]): Values to use
+        param (str): Parameter name
+        n_cpus (int, optional): Defaults to 1.
+        n_gpus (int, optional): Defaults to 0.
+        mem (str, optional): Defaults to "8G".
+        time (_type_, optional):  Defaults to "1:00:00".
+    """
+
     def decorator(func):
         @slurm_arg
         @click.pass_context
@@ -84,20 +99,21 @@ def slurm_loop_adaptor(
                     print(wrapper)
                     cmd = get_command(ctx, func, **{param: element})
                     launch_as_slurm(job, f"python {cmd}")
-            else:
-                return func(*args, **kwargs)
+                return None
+            return func(*args, **kwargs)
 
         return wrapper
 
     return decorator
 
 
-def launch_as_slurm(slurm_job: Slurm, full_command: str = None):
+def launch_as_slurm(slurm_job: Slurm, full_command: str | None = None):
     """Launch the command used to execute script as a slurm job
 
     Args:
         slurm_job (Slurm): Slurm job to launch command on
-        full_command (str, optional): full command may be provide or will be retrieved. Defaults to None.
+        full_command (str, optional): full command may be provide
+            or will be retrieved. Defaults to None.
     """
     if full_command is None:
         full_command = " ".join(sys.argv)
@@ -159,8 +175,6 @@ def get_python_slurm(
 
 def setup_python(job: Slurm):
     """Add command to a slurm job to activate necessary modules and environments
-
-
     Args:
         job (Slurm): slurm job to modify
     """
@@ -179,8 +193,10 @@ def copy_data_tmp(job: Slurm, tar_files: list[str]):
     job.add_cmd("mkdir -p $SLURM_TMPDIR/datasets")
     for ds in tar_files:
         job.add_cmd(
-            f"tar --skip-old-file -xf /home/cbricout/projects/ctb-sbouix/cbricout/cortical-motion-datasets/{ds}.tar -C $SLURM_TMPDIR/datasets "
+            f"tar --skip-old-file -xf \
+            /home/cbricout/projects/ctb-sbouix/cbricout/cortical-motion-datasets/{ds}.tar \
+            -C $SLURM_TMPDIR/datasets "
         )
         job.add_cmd(f'echo "{ds} copied"')
 
-        job.add_cmd(f"head $SLURM_TMPDIR/datasets/SynthCortical/scores.csv")
+        job.add_cmd("head $SLURM_TMPDIR/datasets/SynthCortical/scores.csv")

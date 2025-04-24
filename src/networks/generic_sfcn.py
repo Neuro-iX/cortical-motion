@@ -18,7 +18,8 @@ from src.training.hyperparameters import (
 
 
 def get_norm_layer(norm: NormType, channels):
-    norm_layer = nn.Identity()
+    """Translate enumeration values to norm layer"""
+    norm_layer: nn.Module = nn.Identity()
     if norm == NormType.BATCH:
         norm_layer = nn.BatchNorm3d(channels)
     elif norm == NormType.INSTANCE:
@@ -31,18 +32,31 @@ def get_norm_layer(norm: NormType, channels):
 
 
 def get_activation(activation: ActivationType):
+    """Translate enumeration values to activation layer"""
+
     if activation == ActivationType.RELU:
         return nn.ReLU()
-    elif activation == ActivationType.PRELU:
+    if activation == ActivationType.PRELU:
         return nn.PReLU()
+    return nn.Identity()
 
 
 class CNNLayerNorm(nn.Module):
+    """Definition of layers norm without shape
+    normalizing on channels"""
+
     def __init__(self, channels: int):
         super().__init__()
         self.ln = nn.LayerNorm(channels)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Perform layer normalization by swapping dimension
+
+        Args:
+            x (torch.Tensor): Input tensor
+        Returns:
+            torch.Tensor: Normalized input
+        """
         x = x.permute(0, 2, 3, 4, 1).contiguous()
         x = self.ln(x)
         x = x.permute(0, 4, 1, 2, 3).contiguous()
@@ -112,7 +126,7 @@ class DownBlock(nn.Module):
 
 
 class SFCNHeadBlock(nn.Sequential):
-    """SFCN head bloc, used for classification"""
+    """SFCN head block"""
 
     def __init__(self, hp: HyperParamConf):
         super().__init__(
@@ -130,7 +144,7 @@ class SFCNHeadBlock(nn.Sequential):
 
 
 class SFCNLongHeadBlock(nn.Sequential):
-    """SFCN head bloc, used for classification"""
+    """Longer SFCN head block"""
 
     def __init__(self, hp: HyperParamConf):
         super().__init__(
@@ -156,7 +170,7 @@ class SFCNLongHeadBlock(nn.Sequential):
 
 
 class SFCNVanillaRegBlock(nn.Sequential):
-    """SFCN head bloc, used for classification"""
+    """SFCN regression block"""
 
     def __init__(self, hp: HyperParamConf):
         super().__init__(
@@ -217,7 +231,7 @@ class SFCNEncoder(nn.Module):
 
 class GenericSFCNModel(nn.Module):
     """
-    Implementation of the model from Han Peng et al. in
+    Flexible implementation of the model from Han Peng et al. in
     "Accurate brain age prediction with lightweight deep neural networks"
     https://doi.org/10.1016/j.media.2020.101871
     """
@@ -231,13 +245,21 @@ class GenericSFCNModel(nn.Module):
         self.encoder = SFCNEncoder(hp)
 
         if hp.classifier == ClassifierType.SFCN:
-            self.classifier = SFCNHeadBlock(hp)
+            self.classifier: nn.Module = SFCNHeadBlock(hp)
         elif hp.classifier == ClassifierType.SFCN_LONG:
             self.classifier = SFCNLongHeadBlock(hp)
         elif hp.classifier == ClassifierType.VANILLA_REG:
             self.classifier = SFCNVanillaRegBlock(hp)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute the raw output
+
+        Args:
+            x (torch.Tensor): Input tensor
+
+        Returns:
+            torch.Tensor: Prediction (bins or float)
+        """
         if self.hp.norm == NormType.LAYER:
             x = x.to(memory_format=torch.channels_last_3d)
         return self.classifier(self.encoder(x))
