@@ -1,4 +1,4 @@
-"""Module defining functions to modify folder structures"""
+"""Module defining functions to modify folder structures."""
 
 import glob
 import os
@@ -9,13 +9,12 @@ from src.utils.bids import BIDSDirectory
 
 
 def add_session(directory: BIDSDirectory):
-    """Add a default session folder to every subject in a BIDSDirectory
+    """Add a default session folder to every subject in a BIDSDirectory.
 
     Args:
         directory (BIDSDirectory): directory to modify
     """
     for sub in directory.get_subjects():
-
         if not os.path.isdir(os.path.join(directory.base_path, sub)):
             print(f"!! Exclude file : {sub} !!")
             continue

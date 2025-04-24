@@ -1,4 +1,4 @@
-"""utilty function and type definition for click usage"""
+"""utilty function and type definition for click usage."""
 
 from typing import Any, Callable
 
@@ -6,7 +6,8 @@ import click
 
 
 def get_command_path(ctx: click.Context, func: Callable) -> tuple[str, ...]:
-    """Find the command path, in the click Context, that calls a function
+    """Find the command path, in the click Context, that calls a function.
+
     It is used to replicate the received command and execute it in an other environment
     such as SLURM
     Args:
@@ -45,7 +46,7 @@ def get_command_path(ctx: click.Context, func: Callable) -> tuple[str, ...]:
 
 
 def get_command(ctx: click.Context, func: Callable, **kwargs: dict[str, Any]) -> str:
-    """Retrieve the command called for a given function and arguments
+    """Retrieve the command called for a given function and arguments.
 
     Args:
         ctx (click.Context): Click's context given to the wrapper
@@ -65,12 +66,12 @@ def get_command(ctx: click.Context, func: Callable, **kwargs: dict[str, Any]) ->
 
 
 class TupleParamType(click.ParamType):
-    """Parse Tuple command option"""
+    """Parse Tuple command option."""
 
     name = "tuple"
 
     def convert(self, value, param, ctx):
-
+        """Convert argument value to tuple."""
         if not value:
             return ()
         try:
@@ -82,13 +83,15 @@ class TupleParamType(click.ParamType):
 
 
 class ClickEnumType(click.ParamType):
-    """Parse Enum command option"""
+    """Parse Enum command option."""
 
     def __init__(self, enum_class):
+        """Initialize a type for a given Enumeration."""
         self.name = enum_class.__name__
         self.enum_class = enum_class
 
     def convert(self, value, param, ctx):
+        """Convert argument value to enum."""
         try:
             return self.enum_class[value]
         except KeyError:

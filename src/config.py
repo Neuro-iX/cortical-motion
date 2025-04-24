@@ -1,4 +1,5 @@
-"""Define constant variables and retrieve .env configuration"""
+"""Define constant variables and retrieve .env configuration."""
+
 import os
 
 import dotenv
@@ -48,6 +49,5 @@ MOTION_BIN_STEP = (MOTION_BIN_RANGE[1] - MOTION_BIN_RANGE[0]) / MOTION_N_BINS
 REPORT_DIR = os.getenv(
     "REPORT_DIR", "/home/cbricout/projects/ctb-sbouix/cbricout/cortical_reports"
 )
-RAYTUNE_DIR = os.getenv("RAYTUNE_DIR", "/lustre07/scratch/cbricout/ray_results")
 
 SEED = 2025

@@ -7,7 +7,6 @@ if __name__ == "__main__":
     ds_path = "/home/at70870/local_scratch/Site-RU"
     subjects = os.listdir(ds_path)
     for sub in subjects:
-
         if not os.path.isdir(os.path.join(ds_path, sub)):
             print(f"!! Exclude file : {sub} !!")
             continue
@@ -30,7 +29,7 @@ if __name__ == "__main__":
                 modals.append(match.group(1))
 
         for m in modals:
-            if not "Norm" in m:
+            if "Norm" not in m:
                 sesdir = os.path.join(ds_path, sub, f"ses-{m}", "anat")
 
                 os.makedirs(sesdir)

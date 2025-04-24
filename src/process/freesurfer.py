@@ -1,4 +1,4 @@
-"""Module containing the logic to automate freesurfer jobs on Narval"""
+"""Module containing the logic to automate freesurfer jobs on Narval."""
 
 import abc
 import logging
@@ -12,12 +12,12 @@ from src.utils.bids import BIDSDirectory
 
 
 class Command(abc.ABC):
-    """Basic Command wrapper definition"""
+    """Basic Command wrapper definition."""
 
     cmd: str
 
     def compile(self) -> str:
-        """Create the final command to execute
+        """Create the final command to execute.
 
         Returns:
             str: Final command
@@ -26,11 +26,14 @@ class Command(abc.ABC):
 
 
 class ApptainerEnv(Command):
-    """Command object to use apptainer wrapped commands"""
+    """Command object to use apptainer wrapped commands."""
 
     def __init__(self, sif_file: str):
-        """Args:
-        sif_file (str): Path to SIF container"""
+        """Initialize an Apptainer environment.
+
+        Args:
+        sif_file (str): Path to SIF container
+        """
         self.sif_file = sif_file
         self.bind_pairs: list[tuple[str, str]] = []
         self.commands: list[str] = []
@@ -38,18 +41,18 @@ class ApptainerEnv(Command):
 
     @staticmethod
     def narval_freesurfer() -> "ApptainerEnv":
-        """Use config.PATH_FREESURFER_NARVAL
+        """Use config.PATH_FREESURFER_NARVAL.
 
         Returns:
             ApptainerEnv: Environement for free surfer container
         """
-        assert (
-            config.PATH_FREESURFER_NARVAL is not None
-        ), "No path to freesurfer defined"
+        assert config.PATH_FREESURFER_NARVAL is not None, (
+            "No path to freesurfer defined"
+        )
         return ApptainerEnv(config.PATH_FREESURFER_NARVAL)
 
     def bind(self, orig: str, mnt: str):
-        """Bind folders to apptainer env
+        """Bind folders to apptainer env.
 
         Args:
             orig (str): Directory path in normal environment
@@ -58,7 +61,7 @@ class ApptainerEnv(Command):
         self.bind_pairs.append((orig, mnt))
 
     def add_command(self, command: str):
-        """Add a command to run in apptainer (FIFO)
+        """Add a command to run in apptainer (FIFO).
 
         Args:
             command (str): commands to add
@@ -66,7 +69,7 @@ class ApptainerEnv(Command):
         self.commands.append(command)
 
     def compile(self) -> str:
-        """Create the final command to execute
+        """Create the final command to execute.
 
         Returns:
             str: Final command
@@ -84,10 +87,12 @@ class ApptainerEnv(Command):
 
 
 class FreeSurferReconAll(Command):
-    """Object to wrap FreeSurfer's recon-all command"""
+    """Object to wrap FreeSurfer's recon-all command."""
 
     def __init__(self, subject: str, path: str, subject_dir: str | None = None):
-        """Args:
+        """Initialize FreeSurfer recon-all command.
+
+        Args:
         subject (str): Subject directory output name
         path (str): Path to the subject T1w volume
         subject_dir (str, optional): Directory for outputs. Defaults to None.
@@ -101,6 +106,7 @@ def run_freesurfer_cortical_thichness(
     sub_id: str, ses_id: str, dataset: BIDSDirectory, gen_id: str | None = None
 ) -> int:
     """Launch Slurm job to process one subject with freesurfer.
+
     Only keep cortical thickness stats.
 
     Args:

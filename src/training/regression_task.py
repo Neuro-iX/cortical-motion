@@ -1,4 +1,4 @@
-"Core training module defining lightning logic"
+"""Core training module defining lightning logic."""
 
 import gc
 import logging
@@ -24,13 +24,9 @@ from sklearn.metrics import r2_score, root_mean_squared_error
 from src import config
 from src.datasets.synthetic import SyntheticDataModule
 from src.networks.generic_sfcn import GenericSFCNModel
-from src.training.hyperparameters import (
-    SAMPLE_TUNING,
-    ClassifierType,
-    HyperParamConf,
-    RegressionLossType,
-    TuningTask,
-)
+from src.training.hyperparameters import (SAMPLE_TUNING, ClassifierType,
+                                          HyperParamConf, RegressionLossType,
+                                          TuningTask)
 from src.utils.loss import KLDivLoss, L2Loss
 from src.utils.networks import EnsureOneProcess, init_weights
 from src.utils.plot import get_calibration_curve
@@ -39,13 +35,20 @@ from src.utils.soft_label import ToSoftLabel
 
 
 class RegressionTask(LightningModule):
-    """Base LightningModule for regression task"""
+    """Base LightningModule for regression task."""
 
     def __init__(
         self,
         hp: HyperParamConf,
         bin_range: tuple[float, float] = config.MOTION_BIN_RANGE,
     ):
+        """Initialize regression task.
+
+        Args:
+            hp (HyperParamConf): Configuration for the experi;ent
+            bin_range (tuple[float, float], optional): Range for soft label prediction.
+              Defaults to config.MOTION_BIN_RANGE.
+        """
         super().__init__()
         self.need_postprocess = hp.classifier != ClassifierType.VANILLA_REG
         self.need_rescale = hp.classifier == ClassifierType.VANILLA_REG
@@ -71,18 +74,19 @@ class RegressionTask(LightningModule):
 
         self.label: list[float] = []
         self.prediction: list[float] = []
-        self.test_outputs: list[dict[str, float]] = (
-            []
-        )  # Container for test step outputs
+        self.test_outputs: list[
+            dict[str, float]
+        ] = []  # Container for test step outputs
         self.val_step = 0
         self.save_hyperparameters()
 
     def predict_step(self, batch, batch_idx=0):
+        """Predict motion for a given batch."""
         y = self.model(batch)
         return self.process_out(y)
 
     def process_out(self, y, cuda=False):
-        """Definine postprocessing operations when using softlabels"""
+        """Definine postprocessing operations when using softlabels."""
         if self.need_postprocess:
             return self.soft_label.logsoft_to_hardlabel(y, cuda)
         return y.flatten()
@@ -90,11 +94,11 @@ class RegressionTask(LightningModule):
     def compute_losses(
         self, model_out, hard_label, labels, prefix="train"
     ) -> torch.Tensor:
-        """Compute losses, need to be implemented in children classes"""
+        """Compute losses, need to be implemented in children classes."""
         pass
 
     def training_step(self, batch, batch_idx=0):
-
+        """Compute inference and losses for a given train batch."""
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
         hard_label = batch[config.HARD_LABEL_KEY]
@@ -114,7 +118,7 @@ class RegressionTask(LightningModule):
         return train_loss
 
     def validation_step(self, batch, batch_idx=0):
-
+        """Compute inference and losses for a given validation batch."""
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
         hard_label = batch[config.HARD_LABEL_KEY]
@@ -139,7 +143,7 @@ class RegressionTask(LightningModule):
         return val_loss
 
     def on_validation_epoch_end(self) -> None:
-
+        """Compute metrisc and plot for a full validation epoch."""
         self.log(
             "r2_score",
             r2_score(self.label, self.prediction),
@@ -178,6 +182,7 @@ class RegressionTask(LightningModule):
         plt.close()
 
     def test_step(self, batch, batch_idx=0):
+        """Return processed predictions and labels for a test batch."""
         volumes = batch[config.DATA_KEY]
         labels = batch[config.LABEL_KEY]
         hard_label = batch[config.HARD_LABEL_KEY]
@@ -200,7 +205,7 @@ class RegressionTask(LightningModule):
         return out
 
     def on_test_epoch_end(self):
-
+        """Compute metrisc and plot for a full test epoch."""
         # Aggregate predictions and labels from all test batches:
         all_predictions = torch.cat(
             [x["predictions"] for x in self.test_outputs], dim=0
@@ -253,6 +258,7 @@ class RegressionTask(LightningModule):
         self.test_outputs.clear()
 
     def configure_optimizers(self):
+        """Configure optimizer based on hyperparameters."""
         optim = torch.optim.AdamW(
             self.parameters(),
             lr=self.lr,
@@ -265,9 +271,26 @@ class RegressionTask(LightningModule):
 
 
 class KLRegressionTask(RegressionTask):
-    """Implement Regression task for KL Divergence"""
+    """Implement Regression task for KL Divergence."""
 
-    def compute_losses(self, model_out, hard_label, labels, prefix="train"):
+    def compute_losses(
+        self,
+        model_out: torch.Tensor,
+        hard_label: torch.Tensor,
+        labels: torch.Tensor,
+        prefix="train",
+    ) -> torch.Tensor:
+        """Compute KL loss.
+
+        Args:
+            model_out (torch.Tensor): Model prediction as distributions
+            hard_label (torch.Tensor): Data label as floats
+            labels (torch.Tensor): Data label as distributions
+            prefix (str, optional): loss prefix for logging. Defaults to "train".
+
+        Returns:
+            torch.Tensor: final loss
+        """
         loss = self.kl_loss(model_out, labels, hard_label)
         self.log(f"{prefix}_kl_loss", loss.item(), batch_size=self.batch_size)
         self.log(f"{prefix}_loss", loss.item(), batch_size=self.batch_size)
@@ -275,9 +298,20 @@ class KLRegressionTask(RegressionTask):
 
 
 class L2RegressionTask(RegressionTask):
-    """Implement Regression task for L2 loss"""
+    """Implement Regression task for L2 loss."""
 
     def compute_losses(self, model_out, hard_label, labels, prefix="train"):
+        """Compute L2 loss.
+
+        Args:
+            model_out (torch.Tensor): Model prediction as distributions
+            hard_label (torch.Tensor): Data label as floats
+            labels (torch.Tensor): Data label as distributions
+            prefix (str, optional): loss prefix for logging. Defaults to "train".
+
+        Returns:
+            torch.Tensor: final loss
+        """
         loss = self.l2_loss(self.process_out(model_out, cuda=True), hard_label)
         self.log(f"{prefix}_l2_loss", loss.item(), batch_size=self.batch_size)
         self.log(f"{prefix}_loss", loss.item(), batch_size=self.batch_size)
@@ -285,9 +319,20 @@ class L2RegressionTask(RegressionTask):
 
 
 class MixedRegressionTask(RegressionTask):
-    "Implement Regression task using a mix of KL and L2 loss"
+    """Implement Regression task using a mix of KL and L2 loss."""
 
     def compute_losses(self, model_out, hard_label, labels, prefix="train"):
+        """Compute Mixed loss.
+
+        Args:
+            model_out (torch.Tensor): Model prediction as distributions
+            hard_label (torch.Tensor): Data label as floats
+            labels (torch.Tensor): Data label as distributions
+            prefix (str, optional): loss prefix for logging. Defaults to "train".
+
+        Returns:
+            torch.Tensor: final loss
+        """
         processed = self.process_out(model_out, cuda=True)
         l2_loss = self.l2_loss(processed, hard_label)
         kl_loss = self.kl_loss(model_out, labels, hard_label)
@@ -307,7 +352,7 @@ class MixedRegressionTask(RegressionTask):
 
 
 def launch_regression_training(hp: HyperParamConf):
-    """Launch a regression experiment
+    """Launch a regression experiment.
 
     Args:
         hp (HyperParamConf): experiment's hyperparameters
@@ -369,7 +414,6 @@ def launch_regression_training(hp: HyperParamConf):
     trainer.fit(model, datamodule=SyntheticDataModule(hp, 4))
 
     with EnsureOneProcess(trainer):
-
         logging.warning("Logging pretrain model")
         comet_logger.experiment.log_model(
             name=model_name,
@@ -403,7 +447,7 @@ def generate_command(hp: HyperParamConf) -> str:
     for param, value in asdict(hp).items():
         if value == defaults[param]:
             continue  # Skip idx and parameters matching defaults
-        cli_name = f'--{param.replace("_", "-")}'
+        cli_name = f"--{param.replace('_', '-')}"
         if isinstance(value, (list, tuple)):
             str_value = ",".join(map(str, value))
         elif isinstance(value, Enum):
@@ -416,7 +460,7 @@ def generate_command(hp: HyperParamConf) -> str:
 
 
 def tune_model(tuning_task: TuningTask):
-    """Launch a tuning experiment
+    """Launch a tuning experiment.
 
     Args:
         tuning_task (TuningTask): Task defining the set of

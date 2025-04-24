@@ -1,4 +1,4 @@
-"""Simplify usage of Slurm with click wrapper and job creators"""
+"""Simplify usage of Slurm with click wrapper and job creators."""
 
 import sys
 from functools import wraps
@@ -15,100 +15,8 @@ slurm_arg = click.option(
 )
 
 
-def slurm_adaptor(
-    n_cpus: int = 1,
-    n_gpus: int = 0,
-    mem: str = "8G",
-    time: str = "1:00:00",
-    cpy_synth_ds=False,
-):
-    """This function generate a decorate to enable slurm on a click command.
-    it retrieves the command used to launch the program and launch it in a python slurm job
-    Use the --slurm / -S flag to trigger slurm.
-
-    Args:
-        n_cpus (int, optional): Number of cpus. Defaults to 1.
-        n_gpus (int, optional): Number of gpus. Defaults to 0.
-        mem (str, optional): Memory to allocate. Defaults to "8G".
-        time (str, optional): Time to reserve. Defaults to "1:00:00".
-    """
-
-    def decorator(func):
-        @slurm_arg
-        @wraps(func)
-        def wrapper(slurm: bool, *args, **kwargs):
-            if slurm:
-                job = get_python_slurm(
-                    func.__name__,
-                    None,
-                    output=f"./logs/{func.__name__}.%j.out",
-                    n_cpus=n_cpus,
-                    n_gpus=n_gpus,
-                    mem=mem,
-                    time=time,
-                )
-                if cpy_synth_ds:
-                    print("add tmp data command")
-                    copy_data_tmp(job, ["SynthCortical"])
-                launch_as_slurm(job)
-                return None
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-def slurm_loop_adaptor(
-    iterator: Iterable[Any],
-    param: str,
-    n_cpus: int = 1,
-    n_gpus: int = 0,
-    mem: str = "8G",
-    time: str = "1:00:00",
-):
-    """Generate a decorator that iterate through different values
-    for a given parameter and launch each value as different
-    slurm jobs
-
-    Args:
-        iterator (Iterable[Any]): Values to use
-        param (str): Parameter name
-        n_cpus (int, optional): Defaults to 1.
-        n_gpus (int, optional): Defaults to 0.
-        mem (str, optional): Defaults to "8G".
-        time (_type_, optional):  Defaults to "1:00:00".
-    """
-
-    def decorator(func):
-        @slurm_arg
-        @click.pass_context
-        @wraps(func)
-        def wrapper(ctx: click.Context, slurm: bool, *args, **kwargs):
-            if slurm:
-                for element in iterator:
-                    job = get_python_slurm(
-                        f"{func.__name__}-{element}",
-                        None,
-                        output=f"./logs/{func.__name__}-{element}.%j.out",
-                        n_cpus=n_cpus,
-                        n_gpus=n_gpus,
-                        mem=mem,
-                        time=time,
-                    )
-                    print(wrapper)
-                    cmd = get_command(ctx, func, **{param: element})
-                    launch_as_slurm(job, f"python {cmd}")
-                return None
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 def launch_as_slurm(slurm_job: Slurm, full_command: str | None = None):
-    """Launch the command used to execute script as a slurm job
+    """Launch the command used to execute script as a slurm job.
 
     Args:
         slurm_job (Slurm): Slurm job to launch command on
@@ -125,6 +33,17 @@ def launch_as_slurm(slurm_job: Slurm, full_command: str | None = None):
     slurm_job.sbatch(full_command)
 
 
+def setup_python(job: Slurm):
+    """Add command to a slurm job to activate necessary modules and environments.
+
+    Args:
+        job (Slurm): slurm job to modify
+    """
+    job.add_cmd("module load python cuda httpproxy opencv")
+    job.add_cmd("source ~/fix_bowl/bin/activate")
+    job.add_cmd('echo "python is setup"')
+
+
 def get_python_slurm(
     name: str,
     array: Sequence[int] | int | None,
@@ -136,7 +55,7 @@ def get_python_slurm(
     time="24:00:00",
     nodes=1,
 ) -> Slurm:
-    """Generate a basic job with requeu and python setup
+    """Generate a basic job with requeu and python setup.
 
     Args:
         name (str): Job name
@@ -167,24 +86,14 @@ def get_python_slurm(
     )
     if n_gpus > 0:
         job.add_arguments(gpus_per_node=n_gpus)
-    if not array is None:
+    if array is not None:
         job.add_arguments(array=array)
     setup_python(job)
     return job
 
 
-def setup_python(job: Slurm):
-    """Add command to a slurm job to activate necessary modules and environments
-    Args:
-        job (Slurm): slurm job to modify
-    """
-    job.add_cmd("module load python cuda httpproxy opencv")
-    job.add_cmd("source ~/fix_bowl/bin/activate")
-    job.add_cmd('echo "python is setup"')
-
-
 def copy_data_tmp(job: Slurm, tar_files: list[str]):
-    """Extract data from scratch to $SLURM_TMPDIR for pretraining dataset
+    """Extract data from scratch to $SLURM_TMPDIR for pretraining dataset.
 
     Args:
         job (Slurm): slurm job to modify
@@ -200,3 +109,103 @@ def copy_data_tmp(job: Slurm, tar_files: list[str]):
         job.add_cmd(f'echo "{ds} copied"')
 
         job.add_cmd("head $SLURM_TMPDIR/datasets/SynthCortical/scores.csv")
+
+
+def slurm_adaptor(
+    n_cpus: int = 1,
+    n_gpus: int = 0,
+    mem: str = "8G",
+    time: str = "1:00:00",
+    cpy_synth_ds=False,
+):
+    """Generate a decorate to enable slurm on a click command.
+
+    It retrieves the command used to launch the program and launch it in a python slurm job
+    Use the --slurm / -S flag to trigger slurm.
+
+    Args:
+        n_cpus (int, optional): Number of cpus. Defaults to 1.
+        n_gpus (int, optional): Number of gpus. Defaults to 0.
+        mem (str, optional): Memory to allocate. Defaults to "8G".
+        time (str, optional): Time to reserve. Defaults to "1:00:00".
+    """
+
+    def decorator(func):
+        """Return the wrapper."""
+
+        @slurm_arg
+        @wraps(func)
+        def wrapper(slurm: bool, *args, **kwargs):
+            """Wrap the function with slurm logic."""
+            if slurm:
+                job = get_python_slurm(
+                    func.__name__,
+                    None,
+                    output=f"./logs/{func.__name__}.%j.out",
+                    n_cpus=n_cpus,
+                    n_gpus=n_gpus,
+                    mem=mem,
+                    time=time,
+                )
+                if cpy_synth_ds:
+                    print("add tmp data command")
+                    copy_data_tmp(job, ["SynthCortical"])
+                launch_as_slurm(job)
+                return None
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def slurm_loop_adaptor(
+    iterator: Iterable[Any],
+    param: str,
+    n_cpus: int = 1,
+    n_gpus: int = 0,
+    mem: str = "8G",
+    time: str = "1:00:00",
+):
+    """Generate a decorator to use slurm on multiple configurations.
+
+    Iterate through different values for a given parameter and
+    launch each value as different slurm jobs
+
+    Args:
+        iterator (Iterable[Any]): Values to use
+        param (str): Parameter name
+        n_cpus (int, optional): Defaults to 1.
+        n_gpus (int, optional): Defaults to 0.
+        mem (str, optional): Defaults to "8G".
+        time (_type_, optional):  Defaults to "1:00:00".
+    """
+
+    def decorator(func):
+        """Return the wrapper."""
+
+        @slurm_arg
+        @click.pass_context
+        @wraps(func)
+        def wrapper(ctx: click.Context, slurm: bool, *args, **kwargs):
+            """Wrap the function with slurm logic."""
+            if slurm:
+                for element in iterator:
+                    job = get_python_slurm(
+                        f"{func.__name__}-{element}",
+                        None,
+                        output=f"./logs/{func.__name__}-{element}.%j.out",
+                        n_cpus=n_cpus,
+                        n_gpus=n_gpus,
+                        mem=mem,
+                        time=time,
+                    )
+                    print(wrapper)
+                    cmd = get_command(ctx, func, **{param: element})
+                    launch_as_slurm(job, f"python {cmd}")
+                return None
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

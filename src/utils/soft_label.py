@@ -1,9 +1,14 @@
 """
-Module to use the soft labelling described in :
+Module defining the soft labelling procedure.
+
+Procedure is defined in :
     Peng, H., Gong, W., Beckmann, C. F., Vedaldi, A., & Smith, S. M. (2021).
     Accurate brain age prediction with lightweight deep neural networks.
     Medical Image Analysis, 68, 101871.
     https://doi.org/10.1016/j.media.2020.101871
+
+    https://github.com/ha-ha-ha-han/UKBiobank_deep_pretrain/blob/master/dp_model/dp_utils.py
+
 """
 
 from __future__ import annotations
@@ -20,13 +25,7 @@ from src.training.hyperparameters import HyperParamConf
 
 
 class ToSoftLabel(MapTransform):
-    """
-    Utility transform to use soft labelling as define in :
-    Peng, H., Gong, W., Beckmann, C. F., Vedaldi, A., & Smith, S. M. (2021).
-    Accurate brain age prediction with lightweight deep neural networks.
-    Medical Image Analysis, 68, 101871.
-    https://doi.org/10.1016/j.media.2020.101871
-    """
+    """Utility transform to use soft labelling."""
 
     def __init__(
         self,
@@ -39,8 +38,7 @@ class ToSoftLabel(MapTransform):
         pfunc="norm",
     ):
         """
-        Adapted from :
-        https://github.com/ha-ha-ha-han/UKBiobank_deep_pretrain/blob/master/dp_model/dp_utils.py
+        Initialize.
 
         v,bin_centers = number2vector(x,bin_range,bin_step,sigma)
         bin_range: (start, end), size-2 tuple
@@ -70,22 +68,9 @@ class ToSoftLabel(MapTransform):
         if require_grad:
             self.bin_centers = torch.tensor(self.bin_centers, dtype=torch.float32)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor]]
-    ) -> Dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key, backup in zip(self.keys, self.backup_keys):
-            if torch.is_tensor(d[key]):
-                d[backup] = d[key].clone()
-            else:
-                d[backup] = d[key]
-
-            d[key] = self.value_to_softlabel(d[key])
-
-        return d
-
     def _get_probs(self, x: torch.Tensor) -> torch.Tensor:
-        """Utility function to retrieve probability vector from input
+        """Retrieve probability vector from input.
+
         If sum of every element is more than 1, we consider that the input
         vector need a log_softmax
 
@@ -105,7 +90,7 @@ class ToSoftLabel(MapTransform):
     def value_to_softlabel(
         self, x: torch.Tensor | np.ndarray | float
     ) -> torch.Tensor | np.ndarray:
-        """Convert a vector of single values to a vector of soft label
+        """Convert a vector of single values to a vector of soft label.
 
         Args:
             x (torch.Tensor | np.array | float): Vector of label as Tensor or array
@@ -127,7 +112,6 @@ class ToSoftLabel(MapTransform):
             i = i.astype(int)
             return i if not was_tensor else torch.tensor(i)
         else:
-
             if np.isscalar(x):
                 v = np.zeros((self.bin_number,))
                 for i in range(self.bin_number):
@@ -161,7 +145,7 @@ class ToSoftLabel(MapTransform):
             return v if not was_tensor else torch.tensor(v)
 
     def logsoft_to_hardlabel(self, x: torch.Tensor, cuda=False) -> torch.Tensor:
-        """Convert soft label (in log format) to hard label
+        """Convert soft label (in log format) to hard label.
 
         Args:
             x (torch.Tensor): Vector of soft label or single soft label
@@ -185,8 +169,7 @@ class ToSoftLabel(MapTransform):
         return torch.as_tensor(pred)
 
     def soft_label_to_mean_std(self, x: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
-        """Convert soft label to a list of weighted mean and standard deviation
-        of the soft label distribution
+        """Convert soft label to a list of weighted mean and standard deviation.
 
         Args:
             x (torch.Tensor): Vector of soft label or single soft label
@@ -213,7 +196,7 @@ class ToSoftLabel(MapTransform):
 
     @staticmethod
     def hp_config(hp: HyperParamConf) -> ToSoftLabel:
-        """Create an instance with basic configuration (see config.py)
+        """Create an instance with basic configuration (see config.py).
 
         Returns:
             Self: Instance with basic config
@@ -229,3 +212,18 @@ class ToSoftLabel(MapTransform):
             bin_step=step,
             pfunc=hp.soft_label_func,
         )
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor]]
+    ) -> Dict[Hashable, torch.Tensor]:
+        """Apply soft labelling."""
+        d = dict(data)
+        for key, backup in zip(self.keys, self.backup_keys):
+            if torch.is_tensor(d[key]):
+                d[backup] = d[key].clone()
+            else:
+                d[backup] = d[key]
+
+            d[key] = self.value_to_softlabel(d[key])
+
+        return d

@@ -1,10 +1,8 @@
-import os
 import sys
 
 sys.path.append(".")
 from simple_slurm import Slurm
 
-from src.utils.slurm import launch_as_slurm
 
 datasets = ["HCPEP_preproc", "MRART_preproc"]
 

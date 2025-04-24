@@ -1,7 +1,8 @@
 """
-This code comes from : https://github.com/Deep-MI/head-motion-tools/tree/main
+This code comes from : https://github.com/Deep-MI/head-motion-tools/tree/main .
+
 Presented in the article : Pollak, C., Kügler, D., Breteler, M.M. and Reuter, M., 2023.
-Quantifying MR head motion in the Rhineland Study–A robust method 
+Quantifying MR head motion in the Rhineland Study–A robust method
 for population cohorts. NeuroImage, 275, p.120176.
 """
 
@@ -17,7 +18,7 @@ warnings.simplefilter("ignore", category=NumbaPerformanceWarning)
 
 
 def get_affine(rot: np.ndarray, transl: np.ndarray) -> np.ndarray:
-    """Create affine matrix from rotation and translation vector
+    """Create affine matrix from rotation and translation vector.
 
     Args:
         rot (np.ndarray): rotation vector
@@ -34,7 +35,7 @@ def get_affine(rot: np.ndarray, transl: np.ndarray) -> np.ndarray:
 
 
 def get_matrices(transf_hist: Motion) -> np.ndarray:
-    """Return affine matrices from an applied motion transform
+    """Return affine matrices from an applied motion transform.
 
     Args:
         transf_hist (Motion): Motion tranform used to modify a volume
@@ -48,19 +49,6 @@ def get_matrices(transf_hist: Motion) -> np.ndarray:
     for rot, transl in zip(rotations, translations):
         affine_matrices.append(get_affine(rot, transl))
     return affine_matrices
-
-
-def get_motion_dist(affine_matrices: np.ndarray) -> float:
-    """Compute average motion using the code from Pollak, C. et al.
-
-    Args:
-        affine_matrices (np.ndarray): list of successive affine matrices
-
-    Returns:
-        float: motion quantification
-    """
-    dist = quantify_motion(affine_matrices)
-    return np.array(dist).mean()
 
 
 @njit()
@@ -90,61 +78,6 @@ def ms_dev(A, B=np.identity(4), x=np.zeros((1, 3)), r=80):
 @njit()
 def rms_dev(A, B=np.identity(4), x=np.zeros((1, 3)), r=80):
     return np.sqrt(ms_dev(A, B, x, r))
-
-
-def quantify_motion(transformation_series, head_center=np.zeros((1, 3)), seq="T1"):
-    """
-    Calculates the speed of movement from transformations.
-
-    Parameters:
-    - transformation_series: numpy array of homogenous transformations
-    - head_center: numpy array representing the center of the head (default: 3x3 array of zeros)
-    - seq: MRI sequence to analyze (default: 'T1')
-    - correct_timestamps: boolean indicating whether to correct timestamps (default: True)
-
-    Returns:
-    - Speed of movement as calculated by the quantifier function.
-    """
-    return quantifier(
-        transformation_series,
-        mode="speed",
-        head_center=head_center,
-        from_starting_position=False,
-        seq=seq,
-    )
-
-
-def quantify_deviation(
-    transformation_series,
-    head_center=np.zeros((1, 3)),
-    zero_in=True,
-    seq="T1",
-    mode="RMSD",
-):
-    """
-    wrapper for "quantifier"
-    calculates the distance to starting point
-
-    Parameters:
-    transformation_series: numpy array of homogenous transformations
-    head_center: numpy array representing the center of the head
-        (default: 3x3 array of zeros)
-    zeroIn: boolean indicating whether to calculate the distance
-        from the starting point (default: True)
-    seq: MRI sequence to analyze (default: 'T1')
-    mode: string indicating the mode to use (default: 'RMSD')
-    correct_timestamps: boolean indicating whether to correct
-        timestamps (default: True)
-    """
-    if not (mode == "RMSD" or mode == "centroid"):
-        raise ValueError("Wrong mode identifier")
-    return quantifier(
-        transformation_series,
-        mode=mode,
-        head_center=head_center,
-        from_starting_position=zero_in,
-        seq=seq,
-    )
 
 
 def quantifier(
@@ -225,3 +158,71 @@ def quantifier(
         arr = np.array(RMSD_diffs)
 
     return arr.tolist()
+
+
+def quantify_motion(transformation_series, head_center=np.zeros((1, 3)), seq="T1"):
+    """
+    Calculates the speed of movement from transformations.
+
+    Parameters:
+    - transformation_series: numpy array of homogenous transformations
+    - head_center: numpy array representing the center of the head (default: 3x3 array of zeros)
+    - seq: MRI sequence to analyze (default: 'T1')
+    - correct_timestamps: boolean indicating whether to correct timestamps (default: True)
+
+    Returns:
+    - Speed of movement as calculated by the quantifier function.
+    """
+    return quantifier(
+        transformation_series,
+        mode="speed",
+        head_center=head_center,
+        from_starting_position=False,
+        seq=seq,
+    )
+
+
+def get_motion_dist(affine_matrices: np.ndarray) -> float:
+    """Compute average motion using the code from Pollak, C. et al.
+
+    Args:
+        affine_matrices (np.ndarray): list of successive affine matrices
+
+    Returns:
+        float: motion quantification
+    """
+    dist = quantify_motion(affine_matrices)
+    return np.array(dist).mean()
+
+
+def quantify_deviation(
+    transformation_series,
+    head_center=np.zeros((1, 3)),
+    zero_in=True,
+    seq="T1",
+    mode="RMSD",
+):
+    """
+    wrapper for "quantifier"
+    calculates the distance to starting point
+
+    Parameters:
+    transformation_series: numpy array of homogenous transformations
+    head_center: numpy array representing the center of the head
+        (default: 3x3 array of zeros)
+    zeroIn: boolean indicating whether to calculate the distance
+        from the starting point (default: True)
+    seq: MRI sequence to analyze (default: 'T1')
+    mode: string indicating the mode to use (default: 'RMSD')
+    correct_timestamps: boolean indicating whether to correct
+        timestamps (default: True)
+    """
+    if not (mode == "RMSD" or mode == "centroid"):
+        raise ValueError("Wrong mode identifier")
+    return quantifier(
+        transformation_series,
+        mode=mode,
+        head_center=head_center,
+        from_starting_position=zero_in,
+        seq=seq,
+    )

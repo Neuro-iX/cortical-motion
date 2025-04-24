@@ -1,4 +1,4 @@
-"""Module defining abstract class than can be exxtend to implement a dataset"""
+"""Module defining abstract class than can be exxtend to implement a dataset."""
 
 import abc
 import os
@@ -14,7 +14,8 @@ from src import config
 
 class BaseDataset(Dataset, metaclass=abc.ABCMeta):
     """
-    Base dataset with class method to setup from env variables
+    Base dataset with class method to setup from env variables.
+
     It assumes that the dataset is defined by a csv file
     """
 
@@ -33,6 +34,10 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
 
     cache = False
 
+    def __len__(self):
+        """Return length of csv data."""
+        return len(self.csv_data)
+
     def __init__(
         self,
         dataset_root: str,
@@ -40,6 +45,18 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
         augment: Callable | None = None,
         normalize: Callable | None = None,
     ):
+        """Initialize dataset.
+
+        Args:
+            dataset_root (str): Name of folder containing the dataset
+            transform (Callable | None, optional): Tranformation to apply. Defaults to None.
+            augment (Callable | None, optional): Augmentation to apply. Defaults to None.
+            normalize (Callable | None, optional): Normalization (after augmentation). Defaults to None.
+
+        Raises:
+            ValueError: In case the current object contains more csv files than dataset folders
+            This class assumes one csv per folder
+        """
         self.dataset_root = dataset_root
         self.transform = transform
         self.augment = augment
@@ -55,7 +72,6 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
             raise ValueError("csv_data and dataset_dir should be of same length")
 
         for ds_path, csv_path in zip(self.dataset_dir, self.csv_path):
-
             if ".tsv" in csv_path:
                 df = pd.read_csv(
                     os.path.join(self.dataset_root, ds_path, csv_path), sep="\t"
@@ -74,10 +90,73 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
 
         self.cached_data = [None for _ in range(self.__len__())]
 
-    def __len__(self):
-        return len(self.csv_data)
+    def rename_fields(self):
+        """Rename dictionnary keys."""
+        for old_key, new_key in self.renaming_map:
+            self.csv_data[new_key] = self.csv_data[old_key].copy()
 
-    def __getitem__(self, idx):
+    def load_volume(self, vol_key: str, vol_path: str) -> torch.Tensor | str:
+        """Load the volume with the needed transforms.
+
+        Args:
+            vol_key (str): Key for the volumes in csv file
+            vol_path (str): Path to the volume
+
+        Returns:
+            torch.Tensor: loaded volume
+        """
+        if self.transform is not None:
+            return self.transform(vol_path)
+        return vol_path
+
+    def apply_augment(self, dict_data: dict[str, Any]) -> dict[str, Any]:
+        """Apply augmentation defined in `augment`.
+
+        Args:
+            dict_data (dict[str,Any]): Data as a dictionnary
+
+        Returns:
+            dict[str,Any]: Dictionnary data with augmentation applied
+        """
+        if self.augment is not None:
+            return self.augment(dict_data)
+        return dict_data
+
+    @abc.abstractmethod
+    def prepare_label(
+        self, lab_key: str, lab_value: str
+    ) -> float | torch.Tensor | np.ndarray:
+        """Prepqres the label for training.
+
+        Args:
+            lab_key (str): Key for the label in csv file
+            lab_value (str): current label value
+
+        Returns: Prepared label
+        """
+
+    @classmethod
+    def from_env(cls, transform: Callable | None = None) -> Self:
+        """Parameterize dataset path with env variables.
+
+        Args:
+            transform (Callable | None, optional): Transform to apply.
+              Defaults to None.
+
+        Returns:
+            Self: Dataset
+        """
+        return cls(config.DATASET_ROOT, transform)
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Load, Augment and Normalize a row of the csv file.
+
+        Args:
+            idx (int): index of row to use
+
+        Returns:
+            dict[str,Any]: Dictionnary containing ready to use data
+        """
         if self.cache and self.cached_data[idx] is not None:
             return self.cached_data[idx]
 
@@ -102,61 +181,3 @@ class BaseDataset(Dataset, metaclass=abc.ABCMeta):
         if self.cache:
             self.cached_data[idx] = dict_item
         return dict_item
-
-    def rename_fields(self):
-        """Simple method for renaming logic"""
-        for old_key, new_key in self.renaming_map:
-            self.csv_data[new_key] = self.csv_data[old_key].copy()
-
-    def load_volume(self, vol_key: str, vol_path: str) -> torch.Tensor | str:
-        """Should load the volume with the needed transforms
-
-        Args:
-            vol_key (str): Key for the volumes in csv file
-            vol_path (str): Path to the volume
-
-        Returns:
-            torch.Tensor: loaded volume
-        """
-        if self.transform is not None:
-            return self.transform(vol_path)
-        return vol_path
-
-    def apply_augment(self, dict_data: dict[str, Any]) -> dict[str, Any]:
-        """Apply augmentation defined in `augment`
-
-        Args:
-            dict_data (dict[str,Any]): Data as a dictionnary
-
-        Returns:
-            dict[str,Any]: Dictionnary data with augmentation applied
-        """
-        if self.augment is not None:
-            return self.augment(dict_data)
-        return dict_data
-
-    @abc.abstractmethod
-    def prepare_label(
-        self, lab_key: str, lab_value: str
-    ) -> float | torch.Tensor | np.ndarray:
-        """Should load the volume with the needed transforms
-
-        Args:
-            vol_key (str): Key for the volumes in csv file
-            vol_path (str): Path to the volume
-
-        Returns: Prepared label
-        """
-
-    @classmethod
-    def from_env(cls, transform: Callable | None = None) -> Self:
-        """Parameter datasest path with env variables
-
-        Args:
-            transform (Callable | None, optional): Transform to apply.
-              Defaults to None.
-
-        Returns:
-            Self: Dataset
-        """
-        return cls(config.DATASET_ROOT, transform)

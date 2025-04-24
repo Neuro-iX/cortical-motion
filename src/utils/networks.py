@@ -1,17 +1,19 @@
-"""Module for network / training utilities"""
+"""Module for network / training utilities."""
 
 import itertools
 import sys
 from typing import Any
 
+import torch
 from lightning import Trainer
 from torch import nn
-import torch
 
 
 def init_weights(model: nn.Module):
-    """Initialize weight for networks using Convolution or Linear layers
-      (no transformers) using kaiming / He init
+    """Initialize weight for networks.
+
+    Works with Convolution or Linear layers (no transformers)
+    using kaiming / He init
 
     Args:
         model (nn.Module): Module to apply init strategy
@@ -38,23 +40,26 @@ def init_weights(model: nn.Module):
 
 
 class EnsureOneProcess:
-    """Context to ensure running on one process"""
+    """Context to ensure running on one process."""
 
     def __init__(self, trainer: Trainer):
+        """Initialize context."""
         self.trainer = trainer
 
     def __enter__(self):
+        """Exit all other process than global."""
         self.trainer.strategy.barrier()
         if not self.trainer.is_global_zero:
             sys.exit(0)
 
     def __exit__(self, exc_type, exc_value, exc_tb):
+        """No exit behaviour."""
         pass
 
 
 def get_hyperparams(hyperparam_grid: dict[str, Any]) -> list[dict[str, Any]]:
     """
-    Returns a hyperparameter combination based on the job_id.
+    Return a hyperparameter combination based on the job_id.
 
     Parameters:
         job_id (int): An integer between 0 and n (inclusive) where n+1 is the

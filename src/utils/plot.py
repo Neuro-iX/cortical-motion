@@ -1,4 +1,4 @@
-"""Utility module for train plot"""
+"""Utility module for train plot."""
 
 from typing import Sequence
 
@@ -13,7 +13,7 @@ def get_calibration_curve(
     label: Sequence[int | float],
     hue: Sequence[int] | None = None,
 ) -> Figure:
-    """Generate calibration curve with matplotlib's pyplot
+    """Generate calibration curve with matplotlib's pyplot.
 
     Args:
         prediction (Sequence[int | float]): prediction vector
@@ -35,7 +35,7 @@ def get_calibration_curve(
 
 
 def plot_mri(mri: np.ndarray):
-    """plot 3 slices of MRI data
+    """Plot 3 slices of MRI data.
 
     Args:
         mri (np.ndarray): MRI data to plot [C,W,H,D]

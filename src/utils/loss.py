@@ -1,13 +1,14 @@
-"""Module defining custom losses"""
+"""Module defining custom losses."""
 
-from torch import nn
 import torch
+from torch import nn
 
 from src.training.hyperparameters import HyperParamConf
 
 
 class KLDivLoss(nn.Module):
-    """Returns K-L Divergence loss as proposed by Peng et al. 2021 for brain age predicition
+    """Returns K-L Divergence loss as proposed by Peng et al. 2021 for brain age predicition.
+
     Different from the default PyTorch nn.KLDivLoss in that
     a) the result is averaged by the 0th dimension (Batch size)
     b) the y distribution is added with a small value (1e-16) to prevent log(0) problem
@@ -15,6 +16,11 @@ class KLDivLoss(nn.Module):
     """
 
     def __init__(self, hp=HyperParamConf(idx=0)):
+        """Initialize KLDiv loss.
+
+        Args:
+            hp (HyperParamConf, optional): Experiment configuration. Defaults to HyperParamConf(idx=0).
+        """
         super().__init__()
         self.loss_func = nn.KLDivLoss(reduction="none")
         self.use_weight = hp.weighted_loss
@@ -22,7 +28,7 @@ class KLDivLoss(nn.Module):
     def forward(
         self, x: torch.Tensor, y: torch.Tensor, hard_label: torch.Tensor
     ) -> torch.Tensor:
-        """Compute KL divergence for given prediction
+        """Compute KL divergence for given prediction.
 
         Args:
             x (torch.Tensor): predictions (as distribution)
@@ -46,18 +52,24 @@ class KLDivLoss(nn.Module):
 
 
 class L2Loss(nn.Module):
-    """Returns L2 loss
+    """Returns L2 loss.
+
     Different from the default PyTorch nn.MSELoss by allowing
     a weighing strategy
     """
 
     def __init__(self, hp=HyperParamConf(idx=0)):
+        """Initialize L2Loss.
+
+        Args:
+            hp (HyperParamConf, optional): Experiment configuration. Defaults to HyperParamConf(idx=0).
+        """
         super().__init__()
         self.loss_func = nn.MSELoss(reduction="none")
         self.use_weight = hp.weighted_loss
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """Compute L2 for given prediction
+        """Compute L2 for given prediction.
 
         Args:
             x (torch.Tensor): predictions (float)

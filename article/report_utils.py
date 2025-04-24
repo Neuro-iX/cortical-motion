@@ -3,10 +3,8 @@ import os
 import re
 
 import pandas as pd
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from matplotlib import pyplot as plt
-from scipy.stats import chi2
 
 from src import config
 
@@ -249,12 +247,12 @@ def get_cortical_openneuro_df(ds, report_model: str):
         f"article/reports/motion_report/OpenNeuro_preproc/{ds}/{report_model}_report.csv",
         index_col=0,
     )
-    if not "ses" in motion.columns or not "ses" in thick_df.columns:
+    if "ses" not in motion.columns or "ses" not in thick_df.columns:
         full_df = motion.merge(thick_df, on=("sub"))
     else:
         full_df = motion.merge(thick_df, on=("sub", "ses"))
 
-    if not "ses" in subject_df.columns or not "ses" in full_df.columns:
+    if "ses" not in subject_df.columns or "ses" not in full_df.columns:
         full_df = full_df.merge(subject_df, on=("sub"))
     else:
         full_df = full_df.merge(subject_df, on=("sub", "ses"))

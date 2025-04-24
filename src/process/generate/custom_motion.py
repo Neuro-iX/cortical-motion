@@ -1,8 +1,7 @@
-"""Module containing our modification on TorchIO's transform to generate motion
-with a magnitude goal"""
+"""Module containing motion related transforms."""
 
 from collections import defaultdict
-from typing import Dict
+from typing import Any, Dict
 
 import numpy as np
 import torch
@@ -14,8 +13,9 @@ from src.process.generate import motion_magnitude
 
 class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
     """
-    Adaptation of torchIO RandomMotion to generate volume with a goal quantified motion
-    We use it to have a more uniform label distribution in the synthetic dataset
+    Adaptation of torchIO RandomMotion to generate volume with a goal quantified motion.
+
+    We use it to have a more uniform label distribution in the synthetic dataset.
     """
 
     def __init__(
@@ -24,7 +24,7 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
         tolerance: float = 0.02,
         num_transforms_range: tuple[int, int] = (2, 8),
     ):
-        """Randomly generate a motion in the range [goal_motion-tolerance, goal_motion+tolerance]
+        """Randomly generate a motion in the range [goal_motion-tolerance, goal_motion+tolerance].
 
         Args:
             goal_motion (float): quantify motion wanted
@@ -46,7 +46,12 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
             parse_input=False,
         )
 
-    def randomize(self, data):
+    def randomize(self, data: Any = None):
+        """Randomize degree and translations range.
+
+        Args:
+            data (Any): Not Used (Defaults to None)
+        """
         self.degrees_range = self.parse_degrees(
             self.R.uniform(0, np.max((self.goal_motion * 2, 1)))
         )
@@ -55,7 +60,9 @@ class CustomMotion(tio.transforms.RandomMotion, RandomizableTransform):
         )
 
     def apply_transform(self, image: torch.Tensor) -> tuple[torch.Tensor, float]:
-        """Same transformation as torchIO RandomMotion, retry until goal motion is produced
+        """Apply motion simulation.
+
+        Same transformation as torchIO RandomMotion, retry until goal motion is produced.
 
         Args:
             image (torch.Tensor): Volume tensor

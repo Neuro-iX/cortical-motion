@@ -1,3 +1,4 @@
 .conda
 .env
+.mypy*
 __pycache__

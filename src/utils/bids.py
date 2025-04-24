@@ -1,4 +1,4 @@
-"""Helper classes and function to iterate through BIDS and Clinica dataset"""
+"""Helper classes and function to iterate through BIDS and Clinica dataset."""
 
 import glob
 import os
@@ -9,7 +9,7 @@ from src import config
 
 
 class BIDSDirectory:
-    """Utility to query BIDS directories"""
+    """Utility to query BIDS directories."""
 
     has_session: bool = False
     has_sites: bool = False
@@ -18,9 +18,13 @@ class BIDSDirectory:
     def __init__(
         self, dataset: str, root_dir: str = config.DATASET_ROOT, has_gen=False
     ):
-        """Args:
+        """Initialize a directory.
+
+        Args:
         dataset (str): Dataset directory name
         root_dir (str): Root directory for all datasets
+        has_gen (bool, optionnal): Indicate if the dataset uses
+            a generation layer
         """
         self.root_dir = root_dir
         self.dataset = dataset
@@ -29,36 +33,38 @@ class BIDSDirectory:
         self.has_session = len(glob.glob("sub-*/ses-*", root_dir=self.base_path)) > 0
 
     def get_subjects(self) -> list[str]:
-        """Retrieve list of all subjects
+        """Retrieve list of all subjects.
+
         Returns:
             list[str]: list of all subjects
         """
         return glob.glob("sub-*", root_dir=self.base_path)
 
     def get_session(self, sub_id: str) -> list[str]:
-        """Retrieve list of seesion
+        """Retrieve list of sessions.
+
         Args:
             sub_id (str): Subject id (sub-???)
         Returns:
-            list[str]: list of session
+            list[str]: list of sessions
         """
-
         return glob.glob("ses-*", root_dir=os.path.join(self.base_path, sub_id))
 
     def get_gen(self, sub_id: str, ses_id: str) -> list[str]:
-        """Retrieve list of seesion
+        """Retrieve list of generations.
+
         Args:
             sub_id (str): Subject id (sub-???)
             ses_id (str): Session id (ses-???)
 
         Returns:
-            list[str]: list of session
+            list[str]: list of generations
         """
-
         return glob.glob("gen-*", root_dir=os.path.join(self.base_path, sub_id, ses_id))
 
     def walk(self) -> Generator[tuple[str, ...], None, None]:
-        """Iterate over every subjects and session of the dataset
+        """Iterate over every subjects, session and generation of the dataset.
+
         Yields:
             Generator[tuple[str, ...], None, None]: sub_id, ses_id
         """
@@ -71,18 +77,15 @@ class BIDSDirectory:
                     else:
                         yield sub, ses
             else:
-
                 yield (sub,)
 
-    def __len__(self):
-        return len(list(self.walk()))
-
     def get_t1w(self, sub_id: str, ses_id: str = "ses-1", gen_id=None) -> str:
-        """Return path to T1w volume
+        """Return path to T1w volume.
 
         Args:
             sub_id (str): Subject id (sub-???)
             ses_id (str, optional): Session id (ses-???). Defaults to "ses-1".
+            gen_id (str, optional): Generation id. Defaults to None.
 
         Returns:
             str: Path to T1w
@@ -102,14 +105,15 @@ class BIDSDirectory:
         return glob.glob(os.path.join(self.base_path, sub_id, "anat", "*T1w.nii*"))[0]
 
     def get_all_t1w(self, sub_id: str, ses_id: str = "ses-1", gen_id=None) -> list[str]:
-        """Return path to T1w volume
+        """Return path to all T1w volumes.
 
         Args:
             sub_id (str): Subject id (sub-???)
             ses_id (str, optional): Session id (ses-???). Defaults to "ses-1".
+            gen_id (str, optional): Generation id. Defaults to None.
 
         Returns:
-            str: Path to T1w
+            list[str] : Path to all T1w
         """
         if gen_id is not None:
             return glob.glob(
@@ -122,7 +126,7 @@ class BIDSDirectory:
         )
 
     def extract_sub_ses(self, path: str) -> tuple[str | None, str | None]:
-        """Extract subject and session identifier from path
+        """Extract subject and session identifier from path.
 
         Args:
             path (str): path to NifTi file
@@ -144,16 +148,26 @@ class BIDSDirectory:
 
     @classmethod
     def fs_synth(cls) -> "BIDSDirectory":
-        """Method to create object for FreeSurfer's analysis dataset"""
+        """Create object for FreeSurfer's analysis dataset."""
         return cls(
             config.FREESURFER_SYNTH_FOLDER, root_dir=config.DATASET_ROOT, has_gen=True
         )
 
+    def __len__(self):
+        """Return len of available T1w volumes."""
+        return len(list(self.walk()))
+
 
 class ClinicaDirectory(BIDSDirectory):
-    """Utility class to query Clinica processed directory"""
+    """Utility class to query Clinica processed directory."""
 
     def __init__(self, dataset: str, root_dir: str = config.DATASET_ROOT):
+        """Initialize a Clinica directory.
+
+        Args:
+        dataset (str): Dataset directory name
+        root_dir (str): Root directory for all datasets
+        """
         super().__init__(dataset, root_dir)
         self.base_path = os.path.join(self.base_path, "subjects")
         self.has_session = len(glob.glob("sub-*/ses-*", root_dir=self.base_path)) > 0
@@ -161,12 +175,12 @@ class ClinicaDirectory(BIDSDirectory):
         print(self.base_path)
 
     def get_all_t1w(self, sub_id: str, ses_id: str = "ses-1", gen_id=None) -> list[str]:
-        """Return path to T1w volume
+        """Return path to T1w volume.
 
         Args:
             sub_id (str): Subject id (sub-???)
             ses_id (str, optional): Session id (ses-???). Defaults to "ses-1".
-            gen_id : Ignore
+            gen_id : Ignores
         Returns:
             str: Path to T1w
         """
@@ -181,14 +195,14 @@ class ClinicaDirectory(BIDSDirectory):
         )
 
     def get_t1w(self, sub_id: str, ses_id: str = "ses-1", gen_id=None) -> str:
-        """Return path to T1w volume
+        """Return path to all T1w volumes.
 
         Args:
             sub_id (str): Subject id (sub-???)
             ses_id (str, optional): Session id (ses-???). Defaults to "ses-1".
             gen_id : Ignore
         Returns:
-            str: Path to T1w
+            str: Path to all T1w volumes
         """
         return glob.glob(
             os.path.join(
@@ -202,12 +216,13 @@ class ClinicaDirectory(BIDSDirectory):
 
     @classmethod
     def cbic_cuny(cls) -> "ClinicaDirectory":
-        """Method to create object for HBN CUNY and CBIC sites (one folder)"""
+        """Create object for HBN CUNY and CBIC sites (one folder)."""
         return cls(config.CBICCUNY_FOLDER, root_dir=config.DATASET_ROOT)
 
 
 def get_sub(path: str) -> str | None:
-    """Find subject id
+    """Find subject id.
+
     Args:
         path (str): path to file
     Returns:
@@ -225,7 +240,8 @@ def get_sub(path: str) -> str | None:
 
 
 def get_ses(path: str) -> str | None:
-    """Find session id
+    """Find session id.
+
     Args:
         path (str): path to file
     Returns:

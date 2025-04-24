@@ -1,4 +1,4 @@
-"""Module defining Hyperparameter class, enumeration and search functions"""
+"""Module defining Hyperparameter class, enumeration and search functions."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from src.utils.networks import get_hyperparams
 
 
 class TuningTask(Enum):
-    """Possible tuning objectives / task"""
+    """Possible tuning objectives / task."""
 
     CONV = "conv"
     DOWN = "down"
@@ -26,7 +26,7 @@ class TuningTask(Enum):
 
 
 class DownsampleType(Enum):
-    """Pooling strategies"""
+    """Pooling strategies."""
 
     POOL = "pool"
     STRIDE = "stride"
@@ -35,7 +35,7 @@ class DownsampleType(Enum):
 
 
 class NormType(Enum):
-    """Normalization strategies"""
+    """Normalization strategies."""
 
     BATCH = "batch"
     INSTANCE = "instance"
@@ -45,14 +45,14 @@ class NormType(Enum):
 
 
 class ActivationType(Enum):
-    """Activation functions"""
+    """Activation functions."""
 
     RELU = "relu"
     PRELU = "prelu"
 
 
 class RegressionLossType(Enum):
-    """Possible loss functions"""
+    """Possible loss functions."""
 
     KL_DIV = "kldiv"
     L2 = "l2"
@@ -61,7 +61,7 @@ class RegressionLossType(Enum):
 
 
 class ClassifierType(Enum):
-    """Type of classifier"""
+    """Type of classifier."""
 
     SFCN = "sfcn"
     SFCN_LONG = "sfcn_long"
@@ -70,7 +70,7 @@ class ClassifierType(Enum):
 
 @dataclass
 class HyperParamConf:
-    """Class storing all hyperparameters configuration"""
+    """Class storing all hyperparameters configuration."""
 
     idx: int
     task: TuningTask = TuningTask.CONV
@@ -110,7 +110,7 @@ class HyperParamConf:
 
 
 def sample_conv() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test convolution"""
+    """Sample hyperparameter configs to test convolution."""
     hp_list = []
 
     hp_list = [
@@ -123,7 +123,7 @@ def sample_conv() -> list[HyperParamConf]:
 
 
 def sample_down() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test downsampling"""
+    """Sample hyperparameter configs to test downsampling."""
     hp_list = []
     hyperparam_grid = {
         "down": [DownsampleType.POOL, DownsampleType.STRIDE, DownsampleType.AUG_STRIDE],
@@ -135,7 +135,7 @@ def sample_down() -> list[HyperParamConf]:
 
 
 def sample_norm() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test normalization"""
+    """Sample hyperparameter configs to test normalization."""
     hp_list = []
     hyperparam_grid = {
         "norm": [NormType.NONE, NormType.BATCH, NormType.INSTANCE],
@@ -147,7 +147,7 @@ def sample_norm() -> list[HyperParamConf]:
 
 
 def sample_act() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test activations"""
+    """Sample hyperparameter configs to test activations."""
     hp_list = []
 
     hyperparam_grid = {
@@ -160,8 +160,7 @@ def sample_act() -> list[HyperParamConf]:
 
 
 def sample_bins_loss() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test losses
-    for soft label strategy"""
+    """Sample hyperparameter configs to test losses for soft label strategy."""
     hp_list = []
 
     hyperparam_grid = {
@@ -187,8 +186,7 @@ def sample_bins_loss() -> list[HyperParamConf]:
 
 
 def sample_vanillareg() -> list[HyperParamConf]:
-    """Sample hyperparameter configs to test classical regression"""
-
+    """Sample hyperparameter configs to test classical regression."""
     return [
         HyperParamConf(
             idx=0,

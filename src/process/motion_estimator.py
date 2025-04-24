@@ -1,4 +1,4 @@
-"""Module used to do inference on trained motion models"""
+"""Module used to do inference on trained motion models."""
 
 import os
 
@@ -18,7 +18,7 @@ from src.utils.load import LoadVolume
 
 
 def estimate_motion_dl(dl: DataLoader, model_str: str) -> list[dict[str, float]]:
-    """Estimqte motion using a dataloader
+    """Estimate motion using a dataloader.
 
     Args:
         dl (DataLoader): Dataloader containing MRI
@@ -57,8 +57,10 @@ def estimate_motion_dl(dl: DataLoader, model_str: str) -> list[dict[str, float]]
 
 
 def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str):
-    """Estimate motion using a BIDSDirectory
+    """Estimate motion using a BIDSDirectory.
+
     Store a csv report in reports/motion_report/{dataset_name}
+
     Args:
         dataset_dir (BIDSDirectory): Directory to process
         model_str (str): Name of model (stored in article/models)
@@ -85,13 +87,15 @@ def estimate_motion_bids(dataset_dir: BIDSDirectory, model_str: str):
 
 
 def estimate_motion_test(model_str: str):
-    """Estimate motion on synthetic test set
+    """Estimate motion on synthetic test set.
+
     Store a csv report in reports/test_report/synthetic
+
     Args:
         model_str (str): Name of model (stored in article/models)
     """
     torch.cuda.empty_cache()
-    ds = SyntheticDataModule(HyperParamConf(idx=0, batch_size=20), num_workers=6)
+    ds = SyntheticDataModule(HyperParamConf(idx=0, batch_size=16), num_workers=6)
     ds.setup("test")
     dl = ds.test_dataloader()
 

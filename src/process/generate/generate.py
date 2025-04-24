@@ -1,10 +1,9 @@
-"""Module to generate synthetic motion data"""
+"""Module to generate synthetic motion data."""
 
 import json
 import logging
 import os
 import shutil
-
 from typing import Any
 
 import pandas as pd
@@ -12,16 +11,9 @@ import torch
 import torchio as tio
 import tqdm
 from joblib import Parallel, delayed
-from monai.transforms import (
-    CenterSpatialCropd,
-    Compose,
-    LoadImaged,
-    Orientationd,
-    RandomizableTransform,
-    SaveImage,
-    ScaleIntensityd,
-    Transform,
-)
+from monai.transforms import (CenterSpatialCropd, Compose, LoadImaged,
+                              Orientationd, RandomizableTransform, SaveImage,
+                              ScaleIntensityd, Transform)
 from torchio.transforms import RandomElasticDeformation, RandomFlip
 
 from src import config
@@ -30,7 +22,9 @@ from src.utils.bids import BIDSDirectory
 
 
 class CreateSynthVolume(RandomizableTransform):
-    """Transform to produce a synthetic volume using:
+    """Transform to produce a synthetic volume.
+
+    It applies :
     - quantified random motion
     - random elastic deformation
     - random flip
@@ -58,10 +52,19 @@ class CreateSynthVolume(RandomizableTransform):
         self,
         prob: float = 1,
         do_transform: bool = True,
-        goal_motion_range=(0.01, 3),
+        goal_motion_range=(0.01, 4),
         motion_prob=1,
         motion_only=False,
     ):
+        """Initialize Synthetic volume pipeline.
+
+        Args:
+            prob (float, optional): Probability to apply transformation. Defaults to 1.
+            do_transform (bool, optional): Used to prevent any tranformation. Defaults to True.
+            goal_motion_range (tuple, optional): Possible range of motion. Defaults to (0.01, 3).
+            motion_prob (int, optional): Probability to apply motion. Defaults to 1.
+            motion_only (bool, optional): Prevent any other transformation. Defaults to False.
+        """
         super().__init__(prob, do_transform)
         self.elastic_tsf = RandomElasticDeformation(
             num_control_points=7, max_displacement=8, image_interpolation="bspline"
@@ -76,7 +79,7 @@ class CreateSynthVolume(RandomizableTransform):
     def get_parameters(
         self,
     ) -> dict[str, int | float | tuple[int | float, int | float]]:
-        """Return a dictionnary summarizing all parameters for transformation
+        """Return a dictionnary summarizing all parameters for transformation.
 
         Returns:
             dict[str, Number | tuple[Number, Number]]: Parameters for synthetic
@@ -93,7 +96,7 @@ class CreateSynthVolume(RandomizableTransform):
         }
 
     def randomize(self, _=None):
-        """Determine wich transform to apply"""
+        """Determine wich transform to apply."""
         super().randomize(None)
         self.apply_motion = self.R.rand() <= self.motion_prob
         self.apply_elastic = self.R.rand() <= self.elastic_prob
@@ -110,13 +113,13 @@ class CreateSynthVolume(RandomizableTransform):
             self.num_transforms = 0
 
     def __call__(self, data):
+        """Apply transform on given data."""
         img: torch.Tensor = data["data"]
 
         self.randomize()
         if self.apply_flip and not self.motion_only:
             img = self.flip(img)
         if self.apply_elastic and not self.motion_only:
-
             sub = tio.Subject(data=tio.ScalarImage(tensor=img))
             transformed = self.elastic_tsf(sub)
             img = transformed["data"].data
@@ -135,9 +138,10 @@ class CreateSynthVolume(RandomizableTransform):
 
 
 class Preprocess(Compose):
-    """Transform to prepocess MRI volume before synthetic motion generation"""
+    """Transform to prepocess MRI volume before synthetic motion generation."""
 
     def __init__(self):
+        """Initialize basic preprocessing."""
         self.tsf = [
             LoadImaged(keys="data", ensure_channel_first=True, image_only=True),
             Orientationd(keys="data", axcodes="RAS"),
@@ -148,7 +152,7 @@ class Preprocess(Compose):
 
 
 class SyntheticPipeline(Transform):
-    """Transform representing Synthetic generation process until volume storing"""
+    """Transform representing Synthetic generation process until volume storing."""
 
     def __init__(
         self,
@@ -157,6 +161,16 @@ class SyntheticPipeline(Transform):
         n_iterations=config.NUM_ITERATIONS,
         freesurfer_sim=False,
     ):
+        """Initialize synthetic pipeline.
+
+        Args:
+            dataset_dir (BIDSDirectory): Directory containing base data
+            new_dataset_dir (str): Directory to store synthetic data
+            n_iterations (_type_, optional): Number of generation to perform on a single volume.
+             Defaults to config.NUM_ITERATIONS.
+            freesurfer_sim (bool, optional): Flag to specify special FreeSurfer configuration.
+             Apply only motion transormation to allow fair thickness comparison. Defaults to False.
+        """
         super().__init__()
         self.n_iterations = n_iterations
         self.dataset_dir = dataset_dir
@@ -181,9 +195,16 @@ class SyntheticPipeline(Transform):
             ]
         )
 
+    def save_parameters(self):
+        """Save synthetic parameters for reproducibility purpose."""
+        params = self.synthetic_tsf.get_parameters()
+        with open(
+            f"{self.new_dataset_dir}/generation_parameters.json", "w", encoding="utf8"
+        ) as file:
+            json.dump(params, file)
+
     def __call__(self, path: str) -> list[dict[str, Any]]:
-        """Tranform and store the synthetic volume,
-        returns all metadata to store as a dict
+        """Tranform and store the synthetic volume.
 
         Args:
             path (str): Element to process
@@ -246,14 +267,6 @@ class SyntheticPipeline(Transform):
             generated.append(sample)
         return generated
 
-    def save_parameters(self):
-        """Save synthetic parameters for reproducibility purpose"""
-        params = self.synthetic_tsf.get_parameters()
-        with open(
-            f"{self.new_dataset_dir}/generation_parameters.json", "w", encoding="utf8"
-        ) as file:
-            json.dump(params, file)
-
 
 def launch_generate_data(
     dataset_dir: BIDSDirectory,
@@ -262,7 +275,7 @@ def launch_generate_data(
     num_iteration: int,
     freesurfer_sim=False,
 ):
-    """Generate synthetic motion dataset and store everything (Volumes and CSVs)
+    """Generate synthetic motion dataset and store everything (Volumes and CSVs).
 
     Args:
         new_dataset (str): Name of the new dataset

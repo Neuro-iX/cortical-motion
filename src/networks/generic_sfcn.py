@@ -1,5 +1,7 @@
 """
-Module to define the Simple Fully Convolutionnal Network from
+Module to define the Simple Fully Convolutionnal Network.
+
+From:
 Peng, H., Gong, W., Beckmann, C. F., Vedaldi, A., & Smith, S. M. (2021).
 Accurate brain age prediction with lightweight deep neural networks.
 Medical Image Analysis, 68, 101871. https://doi.org/10.1016/j.media.2020.101871
@@ -8,17 +10,39 @@ Medical Image Analysis, 68, 101871. https://doi.org/10.1016/j.media.2020.101871
 import torch
 from torch import nn
 
-from src.training.hyperparameters import (
-    ActivationType,
-    ClassifierType,
-    DownsampleType,
-    HyperParamConf,
-    NormType,
-)
+from src.training.hyperparameters import (ActivationType, ClassifierType,
+                                          DownsampleType, HyperParamConf,
+                                          NormType)
+
+
+class CNNLayerNorm(nn.Module):
+    """Definition of layers norm without shape normalizing on channels."""
+
+    def __init__(self, channels: int):
+        """Initialize layer normalization.
+
+        Args:
+            channels (int): Number of channel in data
+        """
+        super().__init__()
+        self.ln = nn.LayerNorm(channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Perform layer normalization by swapping dimension.
+
+        Args:
+            x (torch.Tensor): Input tensor
+        Returns:
+            torch.Tensor: Normalized input
+        """
+        x = x.permute(0, 2, 3, 4, 1).contiguous()
+        x = self.ln(x)
+        x = x.permute(0, 4, 1, 2, 3).contiguous()
+        return x
 
 
 def get_norm_layer(norm: NormType, channels):
-    """Translate enumeration values to norm layer"""
+    """Translate enumeration values to norm layer."""
     norm_layer: nn.Module = nn.Identity()
     if norm == NormType.BATCH:
         norm_layer = nn.BatchNorm3d(channels)
@@ -32,8 +56,7 @@ def get_norm_layer(norm: NormType, channels):
 
 
 def get_activation(activation: ActivationType):
-    """Translate enumeration values to activation layer"""
-
+    """Translate enumeration values to activation layer."""
     if activation == ActivationType.RELU:
         return nn.ReLU()
     if activation == ActivationType.PRELU:
@@ -41,32 +64,8 @@ def get_activation(activation: ActivationType):
     return nn.Identity()
 
 
-class CNNLayerNorm(nn.Module):
-    """Definition of layers norm without shape
-    normalizing on channels"""
-
-    def __init__(self, channels: int):
-        super().__init__()
-        self.ln = nn.LayerNorm(channels)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Perform layer normalization by swapping dimension
-
-        Args:
-            x (torch.Tensor): Input tensor
-        Returns:
-            torch.Tensor: Normalized input
-        """
-        x = x.permute(0, 2, 3, 4, 1).contiguous()
-        x = self.ln(x)
-        x = x.permute(0, 4, 1, 2, 3).contiguous()
-        return x
-
-
 class DownBlock(nn.Module):
-    """
-    SFCN block for the SFCN Encoder
-    """
+    """SFCN block for the SFCN Encoder."""
 
     def __init__(
         self,
@@ -78,6 +77,17 @@ class DownBlock(nn.Module):
         act: ActivationType,
         kernel_size: int,
     ):
+        """Initialize a DownBlock.
+
+        Args:
+            in_channel (int): Input channels
+            out_channel (int): Output channels
+            n_convs (int): Number of convolution layers
+            norm (NormType): Normalization to use
+            down (DownsampleType): Downsampling to use
+            act (ActivationType): Activation to use
+            kernel_size (int): Size of convolution kernel
+        """
         super().__init__()
         self.convs = nn.Sequential()
         for i in range(n_convs):
@@ -114,7 +124,7 @@ class DownBlock(nn.Module):
             self.convs.append(get_norm_layer(norm, out_channel))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Return the output of the simple convolution module
+        """Return the output of the simple convolution module.
 
         Args:
             x (torch.Tensor): Input tensor
@@ -126,9 +136,14 @@ class DownBlock(nn.Module):
 
 
 class SFCNHeadBlock(nn.Sequential):
-    """SFCN head block"""
+    """SFCN head block."""
 
     def __init__(self, hp: HyperParamConf):
+        """Initialize the HeadBlock.
+
+        Args:
+            hp (HyperParamConf): Configuration of current experiment
+        """
         super().__init__(
             nn.AdaptiveAvgPool3d(1),
             nn.Dropout(p=hp.dropout),
@@ -144,9 +159,14 @@ class SFCNHeadBlock(nn.Sequential):
 
 
 class SFCNLongHeadBlock(nn.Sequential):
-    """Longer SFCN head block"""
+    """Longer SFCN head block."""
 
     def __init__(self, hp: HyperParamConf):
+        """Initialize a Longer head block.
+
+        Args:
+            hp (HyperParamConf):  Configuration of current experiment
+        """
         super().__init__(
             nn.AdaptiveAvgPool3d(1),
             nn.Dropout(p=hp.dropout),
@@ -170,9 +190,14 @@ class SFCNLongHeadBlock(nn.Sequential):
 
 
 class SFCNVanillaRegBlock(nn.Sequential):
-    """SFCN regression block"""
+    """SFCN regression block."""
 
     def __init__(self, hp: HyperParamConf):
+        """Initialize a standard regression block.
+
+        Args:
+            hp (HyperParamConf):  Configuration of current experiment
+        """
         super().__init__(
             nn.AdaptiveAvgPool3d(1),
             nn.Dropout(p=hp.dropout),
@@ -196,9 +221,14 @@ class SFCNVanillaRegBlock(nn.Sequential):
 
 
 class SFCNEncoder(nn.Module):
-    """SFCN Encoder for SFCN Model"""
+    """SFCN Encoder for SFCN Model."""
 
     def __init__(self, hp: HyperParamConf):
+        """Initialize an Encoder with multiple DownBlocks.
+
+        Args:
+            hp (HyperParamConf):  Configuration of current experiment
+        """
         super().__init__()
         self.convs = nn.Sequential()
         for i, c in enumerate(hp.n_convs):
@@ -218,7 +248,7 @@ class SFCNEncoder(nn.Module):
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Return the encoding of the SFCN encoder
+        """Return the encoding of the SFCN encoder.
 
         Args:
             x (torch.Tensor): input volume tensor
@@ -231,8 +261,9 @@ class SFCNEncoder(nn.Module):
 
 class GenericSFCNModel(nn.Module):
     """
-    Flexible implementation of the model from Han Peng et al. in
-    "Accurate brain age prediction with lightweight deep neural networks"
+    Flexible implementation of the model from Han Peng et al.
+
+    in "Accurate brain age prediction with lightweight deep neural networks"
     https://doi.org/10.1016/j.media.2020.101871
     """
 
@@ -240,6 +271,11 @@ class GenericSFCNModel(nn.Module):
         self,
         hp: HyperParamConf,
     ):
+        """Initialize a Full SFCN model.
+
+        Args:
+            hp (HyperParamConf):  Configuration of current experiment
+        """
         super().__init__()
         self.hp = hp
         self.encoder = SFCNEncoder(hp)
@@ -252,7 +288,7 @@ class GenericSFCNModel(nn.Module):
             self.classifier = SFCNVanillaRegBlock(hp)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Compute the raw output
+        """Compute the raw output.
 
         Args:
             x (torch.Tensor): Input tensor
