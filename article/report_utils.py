@@ -153,18 +153,19 @@ def get_cortical_rubic_df(model):
 def get_cortical_hcpep_df(model):
     thick_df = retrieve_fs_meas("HCPEP_preproc")
 
-    # subject_df = pd.read_csv(
-    #     "article/participants_csv/HCPEP_participants.csv", sep="\t"
-    # ).rename(
-    #     columns={
-    #         "participant_id": "sub",
-    #     }
-    # )
+    subject_df = pd.read_csv("article/participants_csv/HCPEP_participants.csv").rename(
+        columns={"Age": "age", "Sex": "sex"}
+    )
+    subject_df["sub"] = "sub-" + subject_df["Session ID"].apply(
+        lambda x: x.split("_")[0]
+    )
     motion = pd.read_csv(
         f"article/reports/motion_report/HCPEP_preproc/{model}_report.csv",
         index_col=0,
     )
     full_df = motion.merge(thick_df, on=("sub", "ses"))
+    full_df = full_df.merge(subject_df, on=("sub"))
+
     scores = pd.read_csv("article/participants_csv/HCPEP_scores.csv")
     scores["sub"] = scores["Subject ID"].apply(lambda x: "sub-" + x.split("_")[0])
     scores["ses"] = scores["Subject ID"].apply(

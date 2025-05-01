@@ -2,10 +2,15 @@
 
 import click
 
-from src.training.hyperparameters import (ActivationType, ClassifierType,
-                                          DownsampleType, HyperParamConf,
-                                          NormType, RegressionLossType,
-                                          TuningTask)
+from src.training.hyperparameters import (
+    ActivationType,
+    ClassifierType,
+    DownsampleType,
+    HyperParamConf,
+    NormType,
+    RegressionLossType,
+    TuningTask,
+)
 from src.training.regression_task import launch_regression_training, tune_model
 from src.utils.click_commands import ClickEnumType, TupleParamType
 from src.utils.slurm import slurm_adaptor

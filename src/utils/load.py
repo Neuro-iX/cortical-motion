@@ -4,8 +4,14 @@ import logging
 from typing import Any
 
 import matplotlib
-from monai.transforms import (CenterSpatialCropd, Compose, LoadImaged,
-                              Orientationd, ScaleIntensityd, Transform)
+from monai.transforms import (
+    CenterSpatialCropd,
+    Compose,
+    LoadImaged,
+    Orientationd,
+    ScaleIntensityd,
+    Transform,
+)
 
 from src.utils.plot import plot_mri
 

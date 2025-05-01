@@ -24,9 +24,13 @@ from sklearn.metrics import r2_score, root_mean_squared_error
 from src import config
 from src.datasets.synthetic import SyntheticDataModule
 from src.networks.generic_sfcn import GenericSFCNModel
-from src.training.hyperparameters import (SAMPLE_TUNING, ClassifierType,
-                                          HyperParamConf, RegressionLossType,
-                                          TuningTask)
+from src.training.hyperparameters import (
+    SAMPLE_TUNING,
+    ClassifierType,
+    HyperParamConf,
+    RegressionLossType,
+    TuningTask,
+)
 from src.utils.loss import KLDivLoss, L2Loss
 from src.utils.networks import EnsureOneProcess, init_weights
 from src.utils.plot import get_calibration_curve
@@ -79,6 +83,9 @@ class RegressionTask(LightningModule):
         ] = []  # Container for test step outputs
         self.val_step = 0
         self.save_hyperparameters()
+
+    def forward(self, batch):
+        return self.model(batch)
 
     def predict_step(self, batch, batch_idx=0):
         """Predict motion for a given batch."""

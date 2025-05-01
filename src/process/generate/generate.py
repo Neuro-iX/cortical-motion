@@ -11,9 +11,16 @@ import torch
 import torchio as tio
 import tqdm
 from joblib import Parallel, delayed
-from monai.transforms import (CenterSpatialCropd, Compose, LoadImaged,
-                              Orientationd, RandomizableTransform, SaveImage,
-                              ScaleIntensityd, Transform)
+from monai.transforms import (
+    CenterSpatialCropd,
+    Compose,
+    LoadImaged,
+    Orientationd,
+    RandomizableTransform,
+    SaveImage,
+    ScaleIntensityd,
+    Transform,
+)
 from torchio.transforms import RandomElasticDeformation, RandomFlip
 
 from src import config

@@ -2,3 +2,6 @@
 .env
 .mypy*
 __pycache__
+
+HCPEP*
+HCP-YA*

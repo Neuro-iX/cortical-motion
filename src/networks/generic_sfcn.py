@@ -10,9 +10,13 @@ Medical Image Analysis, 68, 101871. https://doi.org/10.1016/j.media.2020.101871
 import torch
 from torch import nn
 
-from src.training.hyperparameters import (ActivationType, ClassifierType,
-                                          DownsampleType, HyperParamConf,
-                                          NormType)
+from src.training.hyperparameters import (
+    ActivationType,
+    ClassifierType,
+    DownsampleType,
+    HyperParamConf,
+    NormType,
+)
 
 
 class CNNLayerNorm(nn.Module):
@@ -298,4 +302,53 @@ class GenericSFCNModel(nn.Module):
         """
         if self.hp.norm == NormType.LAYER:
             x = x.to(memory_format=torch.channels_last_3d)
+        return self.classifier(self.encoder(x))
+
+
+class ScriptableGenericSFCNModel(nn.Module):
+    """
+    Torchscriptable implementation of the model from Han Peng et al.
+
+    in "Accurate brain age prediction with lightweight deep neural networks"
+    https://doi.org/10.1016/j.media.2020.101871
+
+    This model should only be use when exporting to a script module
+    for inference purposes
+
+    DOES NOT SUPPORT LAYER NORM
+    """
+
+    def __init__(
+        self,
+        hp: HyperParamConf,
+    ):
+        """Initialize a Full SFCN model.
+
+        Args:
+            hp (HyperParamConf):  Configuration of current experiment
+        """
+        super().__init__()
+        self.encoder = SFCNEncoder(hp)
+
+        if hp.classifier == ClassifierType.SFCN:
+            self.classifier: nn.Module = SFCNHeadBlock(hp)
+        elif hp.classifier == ClassifierType.SFCN_LONG:
+            self.classifier = SFCNLongHeadBlock(hp)
+        elif hp.classifier == ClassifierType.VANILLA_REG:
+            self.classifier = SFCNVanillaRegBlock(hp)
+
+        # Replace logsoftmax by softmax
+        self.classifier.pop(-1)
+        self.classifier.append(nn.Softmax(dim=1))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute the raw output.
+
+        Args:
+            x (torch.Tensor): Input tensor
+
+        Returns:
+            torch.Tensor: Prediction (bins or float)
+        """
+        # We removed conditional flow
         return self.classifier(self.encoder(x))

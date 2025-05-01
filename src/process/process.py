@@ -13,8 +13,7 @@ from src import config
 from src.process.folder_modifier import add_session
 from src.process.freesurfer import run_freesurfer_cortical_thichness
 from src.process.generate.generate import launch_generate_data
-from src.process.motion_estimator import (estimate_motion_bids,
-                                          estimate_motion_test)
+from src.process.motion_estimator import estimate_motion_bids, estimate_motion_test
 from src.utils.bids import BIDSDirectory, ClinicaDirectory
 from src.utils.slurm import slurm_adaptor
 
