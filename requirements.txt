@@ -17,3 +17,4 @@ tqdm==4.67.1
 scipy==1.15.2
 rich==14.0.0
 dotenv==0.9.9
+statsmodels==0.14.4
