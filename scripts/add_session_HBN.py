@@ -4,7 +4,7 @@ import re
 import shutil
 
 if __name__ == "__main__":
-    ds_path = "/home/at70870/local_scratch/Site-RU"
+    ds_path = "/home/chbricout/Desktop/Site-CUNY"
     subjects = os.listdir(ds_path)
     for sub in subjects:
         if not os.path.isdir(os.path.join(ds_path, sub)):
