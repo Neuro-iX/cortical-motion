@@ -1,6 +1,6 @@
-# Detecting Automatic Anatomical Measurement Bias Linked to Movement Artifact in Structural Brain MRI Using Deep Learning
+# Estimation of Head Motion in Structural MRI and its Impact on Cortical Thickness Measurements in Retrospective Data
 
-Code used for our *Imaging Neuroscience* article.  
+Code used for our article submitted in *Human Brain Mapping*.  
 This repository can be used to train new models and replicate our study.
 
 For inference purposes, you may use [*Agitation*](https://github.com/Neuro-iX/agitation): our motion quantification tool, available as a CLI, Docker container, Boutiques descriptor, Nipoppy pipeline, and Python library.
