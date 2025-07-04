@@ -1,5 +1,7 @@
 # Estimation of Head Motion in Structural MRI and its Impact on Cortical Thickness Measurements in Retrospective Data
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15808905.svg)](https://doi.org/10.5281/zenodo.15808905)
+
 Code used for our article submitted in *Human Brain Mapping*, already available on [Arxiv](https://arxiv.org/abs/2505.23916).  
 This repository can be used to train new models and replicate our study.
 
