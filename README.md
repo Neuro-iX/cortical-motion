@@ -2,24 +2,14 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15808905.svg)](https://doi.org/10.5281/zenodo.15808905)
 
-Code used for our article submitted in *Human Brain Mapping*, already available on [Arxiv](https://arxiv.org/abs/2505.23916).  
+Code used for our article accepted in *Frontiers in Neuroscience - Brain Imaging Section*, already available on [Arxiv](https://arxiv.org/abs/2505.23916).  
 This repository can be used to train new models and replicate our study.
 
 For inference purposes, you may use [*Agitation*](https://github.com/Neuro-iX/agitation): our motion quantification tool, available as a CLI, Docker container, Boutiques descriptor, Nipoppy pipeline, and Python library.
 
 ## Abstract
 
-Motion-related artifacts are inevitable in Magnetic Resonance Imaging (MRI)
-and can bias automated neuroanatomical metrics such as cortical thickness. Manual review
-cannot objectively quantify motion in anatomical scans, and existing automated approaches
-often require specialized hardware or noisy manual labels. Here, we train a 3D convolutional
-network to regress motion severity using only synthetically corrupted volumes. We validate
-our approach on one held-out site from our training cohort and on 14 fully independent datasets, including
-one with manual ratings, achieving a representative R² = 0.65 versus manual labels and
-significant thickness–motion correlations in 12 out of 15 datasets. Furthermore, our predicted mo-
-tion correlates with subject age in line with prior studies. Our approach generalizes across
-scanner brands and protocols, enabling objective, scalable motion assessment in structural
-MRI studies without prospective motion correction.
+Motion-related artifacts are inevitable in Magnetic Resonance Imaging (MRI) and can bias automated neuroanatomical metrics such as cortical thickness. These biases can interfere with statistical analysis which is a major concern as motion has been shown to be more prominent in certain populations such as children or individuals with ADHD. Manual review cannot objectively quantify motion in anatomical scans, and existing quantitative automated approaches often require specialized hardware or custom acquisition protocols. Here, we train a 3D convolutional neural network to estimate a summary motion metric in retrospective routine research scans by leveraging a large training dataset of synthetically motion-corrupted volumes. We validate our method with one held-out site from our training cohort and with 14 fully independent datasets, including one with manual ratings, achieving a Spearman Rank correlation of $0.71$ versus manual labels. We also tested the correlation of our predicted motion score with morphometric measurements known to be impacted by motion, achieving significant correlation on most datasets. Furthermore, our predicted motion correlates with subject age in line with prior studies. Our approach shows good generalization across scanner brands and protocols, enabling objective, scalable motion assessment in structural MRI studies without prospective motion correction. Finally, we provide empirical evidence that our motion estimator significantly improve model fitness when studying cortical thickness and volume. Our final model is made openly and freely available through "Agitation", a tool usable as a CLI, python package and integrated in Nipoppy and Boutiques.  By providing reliable motion estimates, our method offers researchers a tool to assess and account for potential biases in cortical morphometric analyses. 
 
 ## Getting Started
 
